@@ -32,6 +32,8 @@
 #endif
 
 struct RuntimeUserConfig {
+    std::optional<std::string> gameLanguage;
+    std::optional<uint32_t> qualityPreset;
     std::optional<bool> widescreen;
     std::optional<bool> forceAspect169;
     std::optional<int32_t> windowPosX;
@@ -39,6 +41,8 @@ struct RuntimeUserConfig {
     std::optional<uint32_t> windowWidth;
     std::optional<uint32_t> windowHeight;
     std::optional<float> resolutionMultiplier;
+    std::optional<uint32_t> msaaSamples;
+    std::optional<uint32_t> anisotropy;
     std::optional<std::string> graphicsApi;
     std::optional<std::string> displayMode;
     std::optional<uint32_t> frameInterpolationFps;
@@ -402,6 +406,10 @@ inline RuntimeUserConfig ParseConfigDocument(const toml::value& document) {
         }
     }
 
+    if (auto value=FindConfigValue<std::string>(document,"system","language");value&&(*value=="en"||*value=="es"||*value=="fr"||*value=="de"||*value=="it")) config.gameLanguage=*value;
+    if (auto value=FindConfigUint(document,"video","quality_preset");value&&*value<=5)config.qualityPreset=*value;
+    if (auto value = FindConfigUint(document, "video", "msaa_samples"); value && (*value == 1 || *value == 4)) config.msaaSamples = *value;
+    if (auto value = FindConfigUint(document, "video", "anisotropy"); value && (*value == 1 || *value == 2 || *value == 4 || *value == 8 || *value == 16)) config.anisotropy = *value;
     config.widescreen = FindConfigValue<bool>(document, "video", "widescreen");
     config.forceAspect169 = FindConfigValue<bool>(document, "video", "force_16_9");
     config.windowPosX = FindConfigInt(document, "video", "window_x");

@@ -70,6 +70,12 @@ extern "C" uint32_t SCGetEuRgb60Mode_HLE()
 
 PPC_NATIVE_OVERRIDE(801B1CAC, SCGetEuRgb60Mode_HLE, uint32_t, (), ());
 
+extern "C" uint32_t PcGameLanguage_HLE() {
+    const auto language=RuntimeConfigFile::Get().gameLanguage.value_or("en");
+    return language=="de"?2u:language=="fr"?3u:language=="es"?4u:language=="it"?5u:1u;
+}
+PPC_NATIVE_OVERRIDE(801B1D0C, PcGameLanguage_HLE, uint32_t, (), ());
+
 // Expose the selected emulated NAND identity through the SDK SC APIs.
 
 extern "C" uint32_t SCGetProductArea_HLE()

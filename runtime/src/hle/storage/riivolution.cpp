@@ -308,8 +308,13 @@ std::optional<RuntimeRiivolution::PatchSet> RiivoLoadPatchSet(const fs::path& ov
             if (const auto* savegame = RiivolutionContract::FindSavegamePatch(activePatches)) {
                 if (const auto resolvedSave = RiivolutionContract::MakeAbsoluteFromRelative(
                         sdRootGeneric, xmlDirGeneric, savegame->external)) {
+                    // This portable PC build keeps mutable saves beside config
+                    // and NAND, so GameData remains replaceable during updates.
+                    const auto saveDirectory = RuntimeProduct::IsRetroRewind()
+                        ? RuntimeConfigFile::ApplicationDataDirectory()/"Saves"/"RetroWFC"/gameId.substr(0,4)
+                        : PathFromUtf8(*resolvedSave);
                     state.saveRedirect =
-                        RuntimeRiivolution::SaveRedirect{PathFromUtf8(*resolvedSave),
+                        RuntimeRiivolution::SaveRedirect{saveDirectory,
                                                          savegame->clone};
                     RT_LOG(RT_TAG_RIIVOLUTION) << "savegame redirect: "
                               << PathToUtf8(state.saveRedirect->hostDirectory)

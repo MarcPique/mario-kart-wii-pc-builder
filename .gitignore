@@ -76,3 +76,16 @@ output.txt
 
 # Operating System
 .DS_Store
+
+# Public PC builder: never track build products, tool caches, ROMs or profiles.
+/pc-builder/.build/
+/pc-builder/.cache/
+/pc-builder/dist/
+/pc-builder/Installer/bin/
+/pc-builder/Installer/obj/
+*.iso
+*.wbfs
+*.rvz
+GameData/
+UserData/
+.mkwii-builder/

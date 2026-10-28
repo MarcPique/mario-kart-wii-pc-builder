@@ -1,0 +1,10 @@
+{
+  "version": "1.0.0",
+  "game_id": "RMCP01",
+  "dol_sha256": "80d18895b39c63bd80f457398bfcbb91b7d16ac116a41a88967e954080155b05",
+  "rel_sha256": "16d9d146112541fefea701ecb5bc1a496f9d50e4a752fbb5b6778e7c6399f67d",
+  "setup": {"name":"WiiCompiled-Setup-v0.9.3.exe","url":"https://github.com/patchzyy/Wiicompiled/releases/download/v0.9.3/WiiCompiled-Setup.exe","sha256":"a1c93c0e6b9203a1b3c0b91b87aa13be90f02c3c9b380b65d694f7555bf12b46","bytes":392477226},
+  "retro": {"name":"RetroRewind-6.13.4-full.zip","url":"https://cdn.update.rwfc.net/RetroRewind/zip/6.13.4-full.zip","sha256":"586b929de36018e5fc3f7ee73b0aba407730d38470d7a54b8a455dca14be7002","bytes":1939356115},
+  "wfc": {"name":"payload.RMCPD00.bin","url":"https://rwfc.net/api/wfc/payload?g=RMCPD00","sha256":"099097a0f85a97c348123d91438438b24b112362f1fb23c94df6a343c5366471","bytes":28992},
+  "python": {"name":"python-3.13.17-embed-amd64.zip","url":"https://www.python.org/ftp/python/3.13.17/python-3.13.17-embed-amd64.zip","sha256":"9e35319bffedab8b36ad44d8f377cb4f1733bcec257a0b6d04d94f01486ddb38"}
+}

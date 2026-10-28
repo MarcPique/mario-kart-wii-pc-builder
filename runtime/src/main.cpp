@@ -1400,7 +1400,8 @@ int RuntimeMain(int argc, char** argv) {
         auroraConfig.hasWindowPosition = RuntimeConfigFile::WindowPosition(
             auroraConfig.windowPosX, auroraConfig.windowPosY);
         auroraConfig.allowJoystickBackgroundEvents = !g_headless;
-        auroraConfig.startHidden = g_headless;
+        // Prepare the game and shaders without exposing a runtime splash.
+        auroraConfig.startHidden = true;
         auroraConfig.disableCopyFilter = RuntimeConfigFile::DisableCopyFilter(true);
         // Dolphin-style custom textures. Aurora indexes <userPath>/texture_replacements
         // once during aurora_initialize, so both knobs only take effect on the next launch.
@@ -1409,6 +1410,9 @@ int RuntimeMain(int argc, char** argv) {
         auroraConfig.allowTextureReplacements = RuntimeConfigFile::TextureReplacements(false);
         auroraConfig.allowTextureDumps = auroraConfig.allowTextureReplacements &&
                                          RuntimeConfigFile::TextureDumps(false);
+        auroraConfig.msaa = RuntimeConfigFile::Get().msaaSamples.value_or(1);
+        auroraConfig.maxTextureAnisotropy = static_cast<uint16_t>(RuntimeConfigFile::Get().anisotropy.value_or(1));
+        RT_LOGF(RT_TAG_RUNTIME, "PC graphics: MSAA %u, anisotropy %u\n", auroraConfig.msaa, auroraConfig.maxTextureAnisotropy);
         auroraConfig.vsync = RuntimeConfigFile::Vsync();
         auroraConfig.desiredBackend = BACKEND_AUTO;
         const float resolutionMultiplier = RuntimeConfigFile::ResolutionMultiplier(1.0f);
@@ -1478,7 +1482,7 @@ int RuntimeMain(int argc, char** argv) {
         GxGuestWrite::InstallAuroraHooks();
         UpdateMkwDynamicAspectSurface(auroraInfo.windowSize.native_fb_width,
                                       auroraInfo.windowSize.native_fb_height);
-        settings_overlay::InitializeRuntimeSettings();
+        settings_overlay::InitializeRuntimeSettings(!g_headless);
         if (BootRace::Requested()) {
             aurora_set_skip_unready_pipelines(false);
         }

@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType><TargetFramework>net10.0-windows</TargetFramework>
+    <UseWindowsForms>true</UseWindowsForms><ImplicitUsings>enable</ImplicitUsings><Nullable>enable</Nullable>
+    <AssemblyName>MKWii-PC-Builder</AssemblyName><RootNamespace>MkwiiPcBuilder</RootNamespace>
+    <Version>1.0.0</Version><RuntimeIdentifier>win-x64</RuntimeIdentifier><RuntimeFrameworkVersion>10.0.11</RuntimeFrameworkVersion>
+    <SelfContained>true</SelfContained><PublishSingleFile>true</PublishSingleFile>
+    <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
+    <EnableCompressionInSingleFile>true</EnableCompressionInSingleFile><DebugType>none</DebugType>
+    <ApplicationManifest>app.manifest</ApplicationManifest><ApplicationIcon>builder.ico</ApplicationIcon>
+  </PropertyGroup>
+  <ItemGroup>
+    <EmbeddedResource Include="$(PayloadZip)" LogicalName="BuilderPayload.zip" />
+    <EmbeddedResource Include="$(PythonZip)" LogicalName="PythonRuntime.zip" />
+  </ItemGroup>
+</Project>

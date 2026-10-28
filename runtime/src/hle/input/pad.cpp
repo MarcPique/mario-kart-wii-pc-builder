@@ -2,6 +2,8 @@
 #include "memory.h"
 #include "hle/controller_status_contract.h"
 #include "input_bindings.h"
+#include "runtime_config.h"
+#include <fstream>
 
 #include <algorithm>
 #include <atomic>
@@ -113,6 +115,16 @@ extern "C" uint32_t PAD__Read_HLE(uint32_t statusPtr)
 
     PADStatus statuses[PAD_CHANMAX]{};
     uint32_t rumbleMask = PADRead(statuses);
+
+    // Deterministic local test bridge; dormant in normal launches. It exercises
+    // the real PAD/menu path without desktop input timing affecting the tests.
+    static const bool testBridge=std::getenv("MKW_PC_UI_TEST_BRIDGE")!=nullptr;
+    static unsigned testFrames=0,testButtons=0;
+    if(testBridge){
+        const auto file=RuntimeConfigFile::ApplicationDataDirectory()/"pc-test-input.txt";
+        if(std::ifstream input{file};input){unsigned mask=0,frames=0;if(input>>std::hex>>mask>>std::dec>>frames){testButtons=mask&0x1F7F;testFrames=std::clamp(frames,2u,60u);}input.close();std::error_code ec;std::filesystem::remove(file,ec);}
+        if(testFrames){--testFrames;statuses[0].err=PAD_ERR_NONE;statuses[0].button|=static_cast<uint16_t>(testButtons);}
+    }
 
     FillTriggersHeldByButtons(statuses);
     InputBindings::Apply(statuses);

@@ -1,262 +1,119 @@
-<img width="4190" height="1232" alt="wiicomplogofinalfinalfinalev2MADEBY_INKWRECK_plzcredit" src="https://github.com/user-attachments/assets/df7a3f2e-5336-479a-b4c0-968dd578726d" />
+<div align="center">
 
-# WiiCompiled
+![Mario Kart Wii PC Builder](docs/hero.svg)
 
-<p align="center">
-  <a href="https://github.com/patchzyy/Wiicompiled/releases"><img alt="Windows 10 / 11, x64" src="https://img.shields.io/badge/Windows-10%20%2F%2011%20%C2%B7%20x64-0078D4"></a>
-  <a href="https://github.com/patchzyy/Wiicompiled/releases"><img alt="Linux, x64 / ARM64" src="https://img.shields.io/badge/Linux-x64%20%2F%20ARM64-FCC624?logo=linux&amp;logoColor=white"></a>
-  <a href="https://github.com/patchzyy/Wiicompiled/releases"><img alt="macOS 14+, Apple Silicon" src="https://img.shields.io/badge/macOS-14%2B%20%C2%B7%20Apple%20Silicon-0A84FF?logo=apple&amp;logoColor=white"></a>
-</p>
-<p align="center">
-  <a href="#building-from-source"><img alt="PowerPC static recompilation" src="https://img.shields.io/badge/PowerPC-static%20recompilation-FF9F0A"></a>
-  <a href="#retro-rewind"><img alt="Retro Rewind supported" src="https://img.shields.io/badge/Retro%20Rewind-supported-FF375F"></a>
-  <a href="https://github.com/TeamWheelWizard/WheelWizard/releases"><img alt="Install with Wheel Wizard" src="https://img.shields.io/badge/install%20with-Wheel%20Wizard-8B5CF6"></a>
-  <a href="https://github.com/patchzyy/Wiicompiled/releases"><img alt="Total downloads" src="https://img.shields.io/github/downloads/patchzyy/Wiicompiled/total?color=00B8D9&amp;logo=github"></a>
-  <a href="LICENSE"><img alt="License: GPLv3" src="https://img.shields.io/badge/license-GPLv3-2EA44F?logo=gnu&amp;logoColor=white"></a>
-</p>
+[![Descargar](https://img.shields.io/github/v/release/MarcPique/mario-kart-wii-pc-builder?style=for-the-badge&label=DESCARGAR&color=009bd7)](https://github.com/MarcPique/mario-kart-wii-pc-builder/releases/latest)
+![Windows x64](https://img.shields.io/badge/Windows-x64-1478c8?style=for-the-badge&logo=windows)
+![Tu disco](https://img.shields.io/badge/ISO-local-343c4a?style=for-the-badge)
+[![Licencia](https://img.shields.io/badge/Licencia-GPL--3.0-56a85b?style=for-the-badge)](LICENSE)
 
-A native PC port of Mario Kart Wii, made with static recompilation.
+### Tu disco de Mario Kart Wii. Tu juego de Windows.
 
-There's no emulator in the loop, no interpreter, no JIT, no PowerPC
-anywhere at runtime.
+**Selecciona tu imagen PAL → compila en tu PC → abre Mario Kart Wii.exe desde el escritorio.**
 
-> [!IMPORTANT]
-> There is no Nintendo code, no assets and no game data anywhere in this project or its releases.
-> You need your own legally dumped copy of the PAL version of the game. Setup only ships the
-> toolchain, the translation runs on your machine against your disc image, and nothing ever gets
-> uploaded.
+**[⬇ Descargar el instalador para Windows](https://github.com/MarcPique/mario-kart-wii-pc-builder/releases/latest/download/MKWii-PC-Builder.exe)** · [Capturas](#capturas) · [Instalación](#instalación) · [Cambios](CHANGELOG.md)
 
-[What is a github, I just want to play](https://github.com/TeamWheelWizard/WheelWizard/releases/latest)
+</div>
 
----
+Este builder genera una instalación nativa para Windows a partir de **tu propio disco PAL RMCP01**, con opciones de PC integradas en los menús del juego. El instalador público **no contiene la ROM, el juego recompilado, partidas ni claves de consola**.
 
-## What it does
+## Lo que incluye
 
-**Unlocked framerate with interpolation.** 
-The original game is hard-locked to 60 fps. The runtime can generate interpolated frames in between, so on a
-120/144 Hz monitor things genuinely look smoother.
+| 🏁 El juego | ⚙️ Opciones de PC | 🌍 Idiomas y online |
+|---|---|---|
+| Ventana **Mario Kart Wii** | **Opciones avanzadas** en Opciones y pausa | Español, English, Français, Deutsch e Italiano |
+| Icono en EXE, ventana y barra de tareas | Presets, resolución, formato, V-Sync, AA y anisotropía | **Idioma inmediato**, sin reiniciar |
+| Presentación original y preparación oculta | Controles, fuentes y animaciones nativos | Retro WFC en la misma sesión |
+| EXE de arranque en el escritorio | Sin barra flotante ni necesidad de F10 | Salas al abrir y cada **40 segundos** |
 
-> [!WARNING]
-> Interpolation is experimental right now and will show artifacts in specific scenarios.
+El icono completo se obtiene **localmente del banner de tu disco**. La integración usa Retro Rewind **6.13.4**, incluido su contenido adicional y sus cambios de jugabilidad.
 
-**Any aspect ratio you want.** 
-Drag the window bigger, wider, whatever, the camera adjusts
-live.
+## Instalación
 
-**Native rendering via aurora.** 
-The graphics layer is built on
-[aurora](https://github.com/encounter/aurora). Aurora is a source-level GameCube & Wii compatibility layer.
+1. Descarga **[MKWii-PC-Builder.exe](https://github.com/MarcPique/mario-kart-wii-pc-builder/releases/latest/download/MKWii-PC-Builder.exe)** desde Releases.
+2. Selecciona tu imagen **ISO, WBFS o RVZ** de Mario Kart Wii **PAL RMCP01**.
+3. Elige la carpeta de instalación y pulsa **Compilar e instalar**.
+4. Abre **Mario Kart Wii.exe** desde el escritorio o pulsa **Abrir el juego**.
 
-**High internal resolution.** 
-Play at several times the console's resolution.
+No necesitas instalar Python, .NET, Visual Studio ni Dolphin. El instalador lleva su propio entorno y descarga las herramientas verificadas de WiiCompiled y Retro Rewind. La traducción y compilación se realizan en tu ordenador. No se envía la imagen del disco.
 
-**Music ducking.** 
-Start playing something else, Spotify, a YouTube video, and
-the game automatically mutes its own music until the other audio stops. Optional, if you'd
-rather it didn't. Windows uses system media controls and Linux uses MPRIS players.
-On macOS 14.2 or later, this detects other apps with active audio output and excludes
-the game's own audio. Apps that keep an output stream running silently can keep
-game music muted even when nothing is audible.
+**Requisitos:** Windows 10/11 x64, CPU con AVX2, GPU compatible con D3D12, Internet y **20 GiB libres** para la compilación. Se recomiendan 16 GiB de RAM. Puede tardar varios minutos según el equipo y las descargas.
 
-**An in-game settings bar.** 
-Press **F10** while the game window has focus:
-- Internal resolution
-- FPS counter
-- MetalFX spatial upscaling on supported macOS GPUs
-- Controller assignment for all four ports
-- Full per-controller button mapping, including the bumpers
-- Dolphin-syntax input expressions and GCPadNew.ini import
-- Controller vibration on/off
-- Volume, instant mute, and the music ducking toggle
+> El EXE del escritorio arranca la instalación elegida; los datos permanecen en esa carpeta. Si ya existe un archivo con ese nombre en el escritorio, se conserva y se utiliza otro nombre.
 
-Everything you change is saved to `Config.toml` on the spot and restored next launch.
+## Capturas
 
-**Dolphin-compatible input expressions.** 
-Each GameCube control can carry an expression in Dolphin's input syntax, with the same operators
-and the same functions.
-A Dolphin `GCPadNew.ini` can be imported directly from the F10 bar.
+Capturas del juego durante las pruebas locales y de la interfaz del instalador. No se incluyen perfiles ni códigos de amigo.
 
-**Vibration toggle.** 
-Force feedback can be turned off for every port at once.
-The official Wii U / Switch GameCube adapter (WUP-028) works too; as with Dolphin, on Windows the
-adapter must be switched to the WinUSB driver once (Zadig).
+<p align="center"><img src="docs/screenshots/installer.png" width="800" alt="Elige tu disco, carpeta e idioma y compila el juego"></p>
 
-**Real Wii Remotes over Bluetooth.**
-Pair a Wii Remote with Windows (Settings > Bluetooth > Add device, press 1+2 or SYNC, leave the
-PIN empty)
+| Menú principal | Opciones avanzadas |
+|---|---|
+| ![Menú principal nativo](docs/screenshots/main-menu.png) | ![Opciones de pantalla](docs/screenshots/advanced-options.png) |
+| **Menú de pausa** | **Idioma en vivo** |
+| ![Botón en la pausa](docs/screenshots/pause-menu.png) | ![Cambio inmediato a inglés](docs/screenshots/live-language.png) |
+| **Ajustes desde la carrera** | **Presentación original** |
+| ![Opciones en pausa sin superposición](docs/screenshots/pause-settings.png) | ![Pantalla de título](docs/screenshots/title.png) |
 
-Known limitations of the Wii Remote path:
-- No IR pointer yet: menus are navigated with the D-pad and A (the game treats the remote as
-  pointing away from the screen).
-- Battery level is not reported to the game and the remote's speaker is not implemented.
-- Only the Wii Remote's own accelerometer is calibrated; the Nunchuk's uses SDL's fixed zero point.
-- The Classic Controller's L/R triggers reach the game as digital (full pull on click): SDL does not
-  expose their analog travel.
-- Turn the Wii Remote support off in that menu if you use a Mayflash DolphinBar, which already
-  presents the remote as a regular gamepad.
+## Dentro del juego
 
-## Requirements
+En la selección de carné, entra en **Opciones → Opciones avanzadas**. En una carrera local, abre la pausa y elige **Opciones avanzadas**. El botón inferior cambia entre **Pantalla**, **Calidad gráfica** e **Idioma**.
 
-- Windows 10 or 11, 64-bit
-- GPU: GTX 1650 / RX 6400 / Arc A310 or higher
-- CPU: Intel Core i5-8400 / AMD Ryzen 5 2600 (4c/6c, ~3.5GHz+) or higher
-- About 20 GB of free disk space during installation (Final game size ~5 GB)
-- macOS 12 (Monterey) or later on Apple Silicon (`arm64`) or Intel (`x86_64-v3`); pre-Haswell Intel CPUs are unsupported
-- On macOS, a Metal-capable GPU and Apple Xcode Command Line Tools (Setup opens Apple's installer when they are missing)
-- A clean, unmodified **PAL `RMCP01`** disc image of Mario Kart Wii, dumped by you. ISO, GCM,
-  GCZ, CISO, WBFS, WIA and RVZ are accepted.
+Puedes cambiar resolución interna y de ventana, modo de pantalla, formato, V-Sync, FPS, bloom, MSAA 4x, anisotropía, nitidez, interpolación, vibración y silencio. Presets: **Original Wii, Bajo, Medio, Alto y Ultra**.
 
-> [!NOTE]
-> GPU/CPU minimums are set by driver support and D3D12/Vulkan feature requirements, not by the game's actual demands.
+**El idioma cambia al instante**, incluidos los textos de menús ya abiertos y el nombre del botón. AA y anisotropía se guardan para el siguiente arranque; bloom se aplica al cargar una escena. Las demás opciones se aplican en vivo cuando lo permite el renderizador.
 
-Only the clean PAL revision will work. Anything else (other
-regions, patched executables) is rejected outright.
+Entra en **Retro WFC** desde el menú del juego. Login, amigos y salas utilizan sus menús nativos en el mismo proceso. Se han probado el login y la creación y cierre de una sala de amigos. La disponibilidad y las normas dependen de [Retro WFC](https://rwfc.net/).
 
-> [!NOTE]
-> Nobody here will tell you where to get the game. Dumping your own disc is on you, and links to
-> game files won't be provided or tolerated.
+## Archivos y partidas
 
-## Installing
-
-For an easy experience, use [Wheel Wizard](https://github.com/TeamWheelWizard/WheelWizard). Pick your clean PAL `RMCP01`
-image under Settings, turn on **WiiCompiled (beta)**, and hit install from the Home page.
-Wheel Wizard downloads the setup tool from this repo and walks you through install, updates and
-launching. The backend itself is deliberately command-line only, Wheel Wizard is a wrapper around it.
-
-### macOS
-
-Download `WiiCompiled-Setup.pkg` from this repository's Releases page and open it. The universal
-package selects the appropriate bundled tools for the host architecture, supporting both Apple Silicon (`arm64`)
-and Intel (`x86_64`) Macs. It installs **WiiCompiled Setup** in Applications; open that app, choose
-your clean PAL `RMCP01` disc image, and select either the base game or Retro Rewind. For Retro Rewind, choose the `RetroRewind6` folder
-or its parent folder.
-
-Setup verifies and extracts the image locally, then translates and compiles the native app on your
-Mac. On a first run it may ask macOS to install Xcode Command Line Tools; complete Apple's installer,
-then open Setup again. When the build completes, Setup asks for administrator approval once to install
-`WiiCompiled.app` (and, if selected, `RetroRewind.app`) in `/Applications`.
-
-Setup opens Terminal while it works, so the extraction and build progress—and any error that needs
-reporting—remain visible.
-
-> [!CAUTION]
-> Only take builds from this repository's
-> [Releases](https://github.com/patchzyy/Wiicompiled/releases) page. If someone's sharing an
-> installer through Discord or some random download site, don't touch it!!
-
-## A note on related projects
-
-WiiCompiled, Wheel Wizard, Retro rewind and other related projects are developed
-**independently** and each has its **own** contribution rules and all have their own
-rules. What applies here does not automatically apply there,
-and vice versa. Check each project's own CONTRIBUTING and README files.
-
-## Retro Rewind
-
-[Retro Rewind](https://wiki.tockdom.com/wiki/Retro_Rewind), ZPL's Mario Kart Wii mod distribution,
-can be built as its **own static profile**: instead of applying `Code.pul` as runtime patches,
-the Kamek/Pulsar code is statically translated together with the base game into a separate native
-executable.
-
-Wheel Wizard drives this too.
-
-## Building from source
-
-Owning the game is still required even if you compile everything yourself.
-
-You'll need: .NET 8 SDK, CMake, Ninja, and LLVM/Clang (the shipped build uses LLVM-MinGW targeting
-`x86-64-v3`).
-
-Build the translator:
-
-```powershell
-dotnet build translator/Translator.sln -c Release
+```text
+Tu instalación/
+├── Mario Kart Wii.exe       ← arranque portable
+├── GameData/                ← juego generado desde tu disco
+├── UserData/                ← ajustes, partidas y registros
+└── .mkwii-builder/          ← herramientas y caché para recompilar
 ```
 
-The default test suite needs no binaries and no host C++ compiler, so you can hack on the
-translator without any game data around.
+Para cambiar de PC, copia **Mario Kart Wii.exe + GameData + UserData** y abre el EXE de esa carpeta. El EXE del escritorio conserva la ruta original.
 
-For everything beyond that, feeding in your own `main.dol`/`StaticR.rel`, running the
-translation, generating the manifest and build graph, and compiling, see [`translator/README.md`](translator/README.md).
+Partidas: `UserData/Saves/RetroWFC/RMCP`; datos de Wii: `UserData/NAND`; ajustes: `UserData/Config.toml`. Las actualizaciones creadas por el builder conservan `UserData` y guardan el contenido anterior como `GameData.previous`.
 
-For a step-by-step guide on compiling both WiiCompiled and Retro Rewind from source on macOS (Apple Silicon), see the [macOS Build Guide](docs/building-macos.md).
+`.mkwii-builder` no es necesaria para jugar: contiene herramientas, descargas y fuentes generadas **solo en tu PC**. Para desinstalar, cierra el juego, conserva `UserData` si quieres tus partidas y elimina la instalación y su EXE del escritorio.
 
-## FAQ
+## Si algo falla
 
-**Is this an emulator?**
-No. Everything is compiled to native code before you ever press play. At runtime there's nothing
-emulating a Wii CPU or GPU.
+- **Imagen incompatible:** se admite PAL **RMCP01** sin modificar. Se verifican el ID y los hashes de `main.dol` y `StaticR.rel`.
+- **Descarga interrumpida:** ejecuta de nuevo el instalador; conserva la caché y verifica SHA-256 antes de usarla.
+- **Carpeta con acentos:** el builder crea un alias ASCII para el toolkit de Windows. Si el sistema no lo permite, elige una carpeta con letras A–Z y números.
+- **Compilación fallida:** activa **Mostrar detalles** y consulta `.mkwii-builder/builder.log`. Revisa sus rutas personales antes de compartirlo.
+- **Actualización interrumpida:** si falta `GameData` y existe `GameData.previous`, restaura el nombre `GameData` con el juego cerrado. Conserva o mueve `GameData.previous` antes de otra actualización. Nunca reemplaces `UserData` por un perfil de prueba.
 
-**Do you provide the game?**
-No. Don't ask. Nothing in this repo or any release contains Nintendo code or assets.
+El instalador no lleva firma Authenticode. El release incluye `SHA256SUMS.txt` para comprobar la descarga.
 
-**Why does setup take so long?**
-Because we **don't** ship the translated binary, most other recomp projects do, but we
-don't want to risk it right now, setup has to run a static recompiler over the whole game
-and then throw a C++ compiler at the result. It's a **one-time cost** on your machine.
+## Código y compilación del instalador
 
-**Which game version works?**
-Clean PAL `RMCP01`. Other regions and modified executables are **rejected**. Translating
-them against the wrong manifest would give you a subtly broken game that's miserable to debug for us.
+Se conservan las fuentes y el historial de **[WiiCompiled v0.9.3](https://github.com/patchzyy/Wiicompiled/releases/tag/v0.9.3)**, con los cambios del runtime y el builder. Los cambios de Aurora están en `pc-builder/patches/aurora-main`; el resto se obtiene del toolkit fijado. El README original está en [docs/UPSTREAM_README.md](docs/UPSTREAM_README.md).
 
-**Can I recompile other GameCube/Wii games with it?**
-The translator itself handles DOLs and RELs generically, see
-`projects/examples/generic-dol.yml`. The catch is that a *playable* port also needs a runtime:
-audio, input, GX, everything the game touches.
+Para compilar **el instalador**, sin una ROM:
 
-**The game crashed / stopped with an error.**
-Errors are deliberately loud instead of quietly swallowed. Send a report along with the run log
-from `%LOCALAPPDATA%\WiiCompiled\Logs`.
+```powershell
+python -m unittest discover -s pc-builder/tests -v
+python pc-builder/build_installer.py
+```
 
-**Will you fix original bugs?**
-Not in the base game, behavior identical to real hardware is the goal. Only report things where this port differs
-from the original game. As for Retro Rewind, some base-game behavior **is** patched, so if it differs from the
-base game, that's normal. If Retro Rewind behavior differs between Dolphin/Wii and WiiCompiled, open an issue on GitHub.
+Necesitas Python 3 y .NET SDK 10. Salida: `pc-builder/dist/MKWii-PC-Builder.exe`. Las versiones y hashes están en [pins.json](pc-builder/worker/pins.json). El payload se construye desde una lista de fuentes permitidas y no toma archivos de una instalación de juego.
 
-**How accurate are the physics?**
-100% - this is proven by in-game ghosts. Since ghosts are replay files based on inputs rather
-than tracked positions, matching ghosts prove the physics match across Dolphin/Wii/WiiCompiled.
+Interfaz de línea de comandos:
 
-**Is it done?**
-Not fully. The game is in a state where everything should be playable and the physics do match
-100% with the original game, but compatibility, rendering, networking and performance are all
-actively being worked on. If you do find an issue, we strongly encourage you to open one on
-GitHub so we can take a look at it.
+```powershell
+.\MKWii-PC-Builder.exe --iso "D:\Mi disco.iso" --install-dir "D:\Mario Kart Wii PC"
+```
 
-## AI usage
-AI coding tools were used during development of this project. 
-All translated output is verified against real hardware behavior and most importantly, physics accuracy is proven synced across Wii, Dolphin, and WiiCompiled (see FAQ). 
+`--self-test` comprueba el entorno integrado. También existen `--no-desktop`, `--desktop-dir`, `--cache-dir`, `--language es` y `--jobs 4`.
 
-## Credits
-- **inkwreck** - making the logo
-- **[aurora](https://github.com/encounter/aurora)** - the GX rendering/windowing backend this
-  project's whole graphics layer sits on. MIT licensed.
-- **[Dawn](https://dawn.googlesource.com/dawn)** - Google's WebGPU implementation, powering
-  aurora's Direct3D, Vulkan and OpenGL backends.
-- **[Dolphin Emulator](https://github.com/dolphin-emu/dolphin)** - an invaluable reference for Wii
-  hardware behavior during development, plus the source of the free DSP coefficient ROM and the
-  unmodified default WiiConnect24 bootstrap tree bundled with the runtime.
-- **[Retro Rewind](https://wiki.tockdom.com/wiki/Retro_Rewind)** by ZPL and team - the mod
-  distribution this project supports.
-- **[Wheel Wizard](https://github.com/TeamWheelWizard/WheelWizard)** - the mod manager this
-  project integrates with as a launch backend.
-- Everyone in the static recompilation community.
+## Créditos
 
-Bundled third-party components and their licenses live in
-[`THIRD-PARTY-NOTICES.md`](THIRD-PARTY-NOTICES.md).
+WiiCompiled / **patchzyy**, Retro Rewind / Retro WFC, MelgMKW / Pulsar, Aurora y los autores de las bibliotecas utilizadas. Desarrollo asistido por **Codex (OpenAI, GPT-6)**, con compilación y pruebas locales. [Avisos y licencias](pc-builder/THIRD-PARTY-NOTICES.md).
 
-
-## License
-
-WiiCompiled is free software: you can redistribute it and/or modify it under the terms of the
-[GNU General Public License, version 3](LICENSE) as published by the Free Software Foundation.
-
-WiiCompiled is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without
-even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
-General Public License for more details.
-
-Any mkwii distribution making use of WiiCompiled must be licensed under GPL v3.0.
-
-Not affiliated with, endorsed by, or associated with Nintendo. Mario Kart Wii is a trademark of
-Nintendo. No Nintendo intellectual property is contained in, distributed with, or obtainable
-through this project.
+**Proyecto no oficial. Mario Kart Wii y sus marcas pertenecen a Nintendo.** El código de este fork se distribuye bajo **GPL-3.0**; las bibliotecas conservan sus licencias. Las capturas documentan el resultado y no son paquetes de recursos del juego.

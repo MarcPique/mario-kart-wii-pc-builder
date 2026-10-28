@@ -1,4 +1,13 @@
 #include "settings_overlay.h"
+#include "pc_menu_hooks.h"
+#include "pc_online_rooms.h"
+#include "pc_graphics_settings.h"
+#include "pc_menu_locale.h"
+#include <aurora/imgui.h>
+#include <SDL3/SDL_video.h>
+#include "runtime_product.h"
+#include <fstream>
+#include <filesystem>
 #include "gx_worker.h"
 #include "audio_backend.h"
 #include "aurora_events.h"
@@ -170,6 +179,7 @@ std::atomic_bool g_strapInputAccepted = false;
 std::atomic_uint64_t g_startupDismissFrame = UINT64_MAX;
 constexpr uint64_t kStrapTransitionCoverFrames = 60;
 std::atomic_bool g_bootShadersReady = false;
+bool g_showWindowWhenReady = false;
 bool g_bootShaderNotice = false;
 Clock::time_point g_bootShaderWaitStart{};
 constexpr uint32_t kBootShaderNoticeThreshold = 100;
@@ -247,6 +257,7 @@ void SetTopBarVisible(bool visible) {
         return;
     }
     g_topBarVisible = visible;
+    if (!visible) PcMenuHooks::NotifyClosed();
 }
 
 void ApplyConfiguredMappings() {
@@ -1293,54 +1304,6 @@ void DrawShaderCompilationStatus() {
     ImGui::PopStyleVar();
 }
 
-void DrawStartupScreen() {
-    if (!StartupScreenVisible()) {
-        return;
-    }
-
-    const ImGuiViewport* viewport = ImGui::GetMainViewport();
-    ImGui::SetNextWindowPos(viewport->Pos, ImGuiCond_Always);
-    ImGui::SetNextWindowSize(viewport->Size, ImGuiCond_Always);
-    ImGui::SetNextWindowBgAlpha(1.0f);
-    ImGui::PushStyleColor(ImGuiCol_WindowBg, IM_COL32(0, 0, 0, 255));
-    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0.0f, 0.0f));
-    constexpr ImGuiWindowFlags kFlags = ImGuiWindowFlags_NoDecoration |
-                                        ImGuiWindowFlags_NoFocusOnAppearing |
-                                        ImGuiWindowFlags_NoInputs |
-                                        ImGuiWindowFlags_NoMove |
-                                        ImGuiWindowFlags_NoNav |
-                                        ImGuiWindowFlags_NoSavedSettings |
-                                        ImGuiWindowFlags_NoBringToFrontOnFocus;
-    if (ImGui::Begin("Wiicompiled Startup", nullptr, kFlags)) {
-        ImGui::SetWindowFontScale(1.25f);
-        constexpr const char* kTitle = "WiiCompiled";
-        const ImVec2 titleSize = ImGui::CalcTextSize(kTitle);
-        const float titleX = std::max(0.0f, (viewport->Size.x - titleSize.x) * 0.5f);
-        const float startY = std::max(0.0f, (viewport->Size.y - titleSize.y) * 0.5f);
-        ImGui::SetCursorPos(ImVec2(titleX, startY));
-        ImGui::TextUnformatted(kTitle);
-        float nextY = startY + titleSize.y + 12.0f;
-        if (g_bootShaderNotice && !g_bootShadersReady.load(std::memory_order_relaxed)) {
-            ImGui::SetWindowFontScale(0.9f);
-            char line[96];
-            std::snprintf(line, sizeof(line), "Compiling shaders, please hold on: %u remaining",
-                          aurora_get_queued_pipeline_count());
-            const float lineX = std::max(0.0f, (viewport->Size.x - ImGui::CalcTextSize(line).x) * 0.5f);
-            ImGui::SetCursorPos(ImVec2(lineX, startY + titleSize.y * 1.8f));
-            ImGui::TextUnformatted(line);
-            nextY = ImGui::GetCursorPosY() + 4.0f;
-        }
-        constexpr const char* kHint = "Press F10 to open settings";
-        ImGui::SetWindowFontScale(0.8f);
-        const ImVec2 hintSize = ImGui::CalcTextSize(kHint);
-        ImGui::SetCursorPos(ImVec2(std::max(0.0f, (viewport->Size.x - hintSize.x) * 0.5f), nextY));
-        ImGui::TextUnformatted(kHint);
-    }
-    ImGui::End();
-    ImGui::PopStyleVar();
-    ImGui::PopStyleColor();
-}
-
 void UpdateBootShaderState() {
     if (g_bootShadersReady.load(std::memory_order_relaxed)) {
         return;
@@ -1381,94 +1344,9 @@ void DrawRestartPrompt() {
     ImGui::EndPopup();
 }
 
-void DrawTopBar() {
-    if (!g_topBarVisible) {
-        return;
-    }
+#include "pc_graphics_values.inl"
 
-    const ImGuiViewport* viewport = ImGui::GetMainViewport();
-    ImGui::GetBackgroundDrawList()->AddRectFilled(viewport->Pos,
-        ImVec2(viewport->Pos.x + viewport->Size.x, viewport->Pos.y + viewport->Size.y),
-        IM_COL32(0, 0, 0, 70));
-    constexpr float kHintMargin = 10.0f;
-    ImGui::SetNextWindowPos(ImVec2(viewport->Pos.x + viewport->Size.x * 0.5f,
-                                 viewport->Pos.y + ImGui::GetFrameHeight() + kHintMargin),
-                            ImGuiCond_Always, ImVec2(0.5f, 0.0f));
-    ImGui::SetNextWindowBgAlpha(0.55f);
-    if (ImGui::Begin("Settings input hint", nullptr,
-                     ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_AlwaysAutoResize |
-                     ImGuiWindowFlags_NoInputs | ImGuiWindowFlags_NoSavedSettings |
-                     ImGuiWindowFlags_NoFocusOnAppearing)) {
-        for (const char* line : {"Settings open - game controls disabled.",
-                                 "Press F10 to return to the game."}) {
-            ImGui::SetCursorPosX((ImGui::GetWindowWidth() - ImGui::CalcTextSize(line).x) * 0.5f);
-            ImGui::TextUnformatted(line);
-        }
-    }
-    ImGui::End();
-    if (!ImGui::BeginMainMenuBar()) return;
-
-    ImGui::TextUnformatted("WiiCompiled");
-    ImGui::Separator();
-    const auto resolutionIt = std::find_if(kResolutions.begin(), kResolutions.end(), [](const ResolutionItem& item) {
-        return std::fabs(item.scale - g_resolutionScale) < 0.001f;
-    });
-    const char* resolutionLabel = resolutionIt != kResolutions.end() ? resolutionIt->label : "Custom";
-    const std::string resolutionMenuLabel = std::string("Resolution: ") + resolutionLabel;
-    if (ImGui::BeginMenu(resolutionMenuLabel.c_str())) {
-        for (const auto& resolution : kResolutions) {
-            const bool selected = std::fabs(resolution.scale - g_resolutionScale) < 0.001f;
-            const bool disabled = IsHighFrameRateMode() && IsHighResolutionScale(resolution.scale);
-            ImGui::BeginDisabled(disabled);
-            const bool clicked = ImGui::MenuItem(resolution.label, nullptr, selected);
-            ImGui::EndDisabled();
-            if (clicked) {
-                SetResolutionScale(resolution.scale);
-            }
-        }
-        ImGui::EndMenu();
-    }
-
-    if (ImGui::BeginMenu("Graphics")) {
-        DrawGraphicsSettings();
-        ImGui::EndMenu();
-    }
-
-    ImGui::SetNextWindowSizeConstraints(ImVec2(0.0f, 0.0f), ImVec2(FLT_MAX, viewport->Size.y * 0.75f));
-    if (ImGui::BeginMenu("Controller settings")) {
-        DrawControllerSettings();
-        // Nest capture under this menu so opening/closing the modal preserves
-        // the settings popup and its current port and scroll position.
-        DrawRebindPrompt();
-        ImGui::EndMenu();
-    }
-
-    const std::string audioLabel = g_audioMuted
-        ? "Audio: Muted"
-        : "Audio: " + std::to_string(g_audioVolumePercent) + "%";
-    // Keep the popup ID stable while the Master slider changes the visible
-    // label. Without the ### suffix, ImGui treats every new percentage as a
-    // different menu and closes the popup on the first drag update.
-    const std::string audioMenuLabel = audioLabel + "###AudioSettingsMenu";
-    if (ImGui::BeginMenu(audioMenuLabel.c_str())) {
-        DrawAudioSettings();
-        DrawRebindPrompt();
-        ImGui::EndMenu();
-    }
-
-    const ImGuiStyle& style = ImGui::GetStyle();
-    const float hideWidth = ImGui::CalcTextSize("Hide (F10)").x + style.FramePadding.x * 2.0f;
-    const float exitWidth = ImGui::CalcTextSize("X").x + style.FramePadding.x * 2.0f;
-    ImGui::SetCursorPosX(std::max(ImGui::GetCursorPosX(),
-                                  ImGui::GetWindowWidth() - hideWidth - exitWidth - style.ItemSpacing.x - 8.0f));
-    if (ImGui::MenuItem("Hide (F10)")) {
-        SetTopBarVisible(false);
-    }
-    if (ImGui::MenuItem("X")) {
-        g_exitPromptOpen = true;
-    }
-    ImGui::EndMainMenuBar();
-}
+void DrawTopBar() {}
 
 bool IsToggleKey(const SDL_Event& event, SDL_Scancode code) {
     return event.type == SDL_EVENT_KEY_DOWN && !event.key.repeat && event.key.scancode == code;
@@ -1525,7 +1403,13 @@ void ApplyInputBlockState() {
 }
 } // namespace
 
-void InitializeRuntimeSettings() noexcept {
+void InitializeRuntimeSettings(bool showWindowWhenReady) noexcept {
+    g_showWindowWhenReady = showWindowWhenReady;
+    PADInit();
+    // A fresh portable install needs usable input before reaching Options.
+    if (!std::filesystem::exists(RuntimeConfigFile::ApplicationDataDirectory()/"keyboard_bindings.dat"))
+        SetKeyboardActive(0, true);
+    PcOnlineRooms::Start();
     PAD_HLE_SetRumbleEnabled(g_rumbleEnabled);
     InputBindings::Reload();
     controller_mapping_wizard::LoadPersistedMappings();
@@ -1574,10 +1458,6 @@ void HandleEvents(const AuroraEvent* events) noexcept {
             CompleteRebind(g_rebind.kind == RebindKind::Controller ? PAD_NATIVE_BUTTON_DISABLED
                                                                   : static_cast<uint32_t>(PAD_KEY_INVALID));
         }
-        if (!g_rebind.active && IsToggleKey(ev->sdl, SDL_SCANCODE_F10)) {
-            SetTopBarVisible(!g_topBarVisible);
-            ApplyInputBlockState();
-        }
         if (!g_rebind.active && g_muteHotkey != PAD_KEY_INVALID &&
             IsToggleKey(ev->sdl, static_cast<SDL_Scancode>(g_muteHotkey))) {
             g_audioMuted = !g_audioMuted;
@@ -1591,10 +1471,13 @@ void HandleEvents(const AuroraEvent* events) noexcept {
                 g_exitPromptOpen = false;
             } else if (g_topBarVisible) {
                 SetTopBarVisible(false);
-            } else {
-                g_exitPromptOpen = true;
             }
             ApplyInputBlockState();
+        }
+        if (ev->sdl.type == SDL_EVENT_GAMEPAD_BUTTON_DOWN && !g_rebind.active) {
+            if (ev->sdl.gbutton.button == SDL_GAMEPAD_BUTTON_EAST && g_topBarVisible) {
+                SetTopBarVisible(false); ApplyInputBlockState();
+            }
         }
         if (IsMouseActivity(ev->sdl)) {
             g_lastMouseActivity = Clock::now();
@@ -1603,6 +1486,7 @@ void HandleEvents(const AuroraEvent* events) noexcept {
 }
 
 void ReleaseControllers() noexcept {
+    PcOnlineRooms::Stop();
     // Aurora drives the LED white on first PADRead and never clears it, and the
     // exit paths terminate the process outright, so do it here.
     bool queued = false;
@@ -1630,8 +1514,11 @@ void Draw() noexcept {
     PersistDisplayModeIfChanged();
     UpdateCursorAutoHide();
     UpdateBootShaderState();
-    if (!StartupScreenVisible()) {
-        DrawShaderCompilationStatus();
+    if (g_showWindowWhenReady && !StartupScreenVisible()) {
+        if (SDL_ShowWindow(aurora_get_window())) {
+            g_showWindowWhenReady = false;
+            RT_LOGF("pc-startup","Background preparation complete; showing Mario Kart Wii\n");
+        }
     }
     DrawFpsOverlay();
     DrawTopBar();
@@ -1639,13 +1526,46 @@ void Draw() noexcept {
     DrawRestartPrompt();
     controller_mapping_wizard::Draw();
     ApplyInputBlockState();
-    DrawStartupScreen();
 }
 
 bool StartupScreenVisible() noexcept {
     return !g_strapInputAccepted.load(std::memory_order_acquire) ||
            !g_bootShadersReady.load(std::memory_order_acquire) ||
            g_presentedFrame < g_startupDismissFrame.load(std::memory_order_relaxed);
+}
+
+unsigned PcGraphicsValue(unsigned sheet,unsigned row) {
+    if(sheet==2){if(row==0){const auto size=aurora_get_window_size();return size.width>=3840?3:size.width>=2560?2:size.width>=1920?1:0;}if(row==1)return g_rumbleEnabled;if(row==2)return g_audioMuted;return 0;}
+    if(sheet==0){switch(row){case 0:return static_cast<unsigned>(aurora_get_display_mode());case 1:return !RuntimeConfigFile::WidescreenEnabled(true)?2:g_forceAspect169?1:0;case 2:return g_vsync;case 3:return g_showFps;case 4:return (g_disabledPostProcessingPaths&0x10u)==0;}}
+    else {switch(row){case 0:return g_pcMsaa==4;case 1:return g_pcAnisotropy>=16?2:g_pcAnisotropy>=8?1:0;case 2:return g_disableCopyFilter;case 3:return g_frameInterpolationMode!=0;case 4:return g_rumbleEnabled;}}
+    return 0;
+}
+void SetPcGraphicsValue(unsigned sheet,unsigned row,unsigned value) {
+    if(sheet==2){if(row==0&&value<4){const int widths[]={1280,1920,2560,3840},heights[]={720,1080,1440,2160};if(aurora_get_display_mode()!=AURORA_DISPLAY_MODE_WINDOWED){aurora_set_display_mode(AURORA_DISPLAY_MODE_WINDOWED);RuntimeConfigFile::SetDisplayMode("windowed");}SDL_SetWindowSize(aurora_get_window(),widths[value],heights[value]);RuntimeConfigFile::SetWindowSize(widths[value],heights[value]);}else if(row==1){g_rumbleEnabled=value;PAD_HLE_SetRumbleEnabled(g_rumbleEnabled);RuntimeConfigFile::SetRumbleEnabled(g_rumbleEnabled);}else if(row==2){g_audioMuted=value;AudioBackend::Instance().SetMuted(g_audioMuted);RuntimeConfigFile::SetAudioMuted(g_audioMuted);}return;}
+    if(sheet==0){switch(row){
+    case 0:if(value<3){aurora_set_display_mode(static_cast<AuroraDisplayMode>(value));g_displayMode=static_cast<int>(aurora_get_display_mode());RuntimeConfigFile::SetDisplayMode(std::string(kDisplayModeConfigNames[g_displayMode]));}break;
+    case 1:if(value<3){g_forceAspect169=value==1;RuntimeConfigFile::Mutable().widescreen=value!=2;RuntimeConfigFile::WriteSetting("video","widescreen",value==2?"false":"true");RuntimeConfigFile::SetForceAspect169(g_forceAspect169);const auto size=aurora_get_window_size();ConfigureMkwDynamicAspect(value!=2,g_forceAspect169,size.width,size.height);}break;
+    case 2:g_vsync=value;aurora_enable_vsync(g_vsync);RuntimeConfigFile::SetVsync(g_vsync);break;
+    case 3:g_showFps=value;RuntimeConfigFile::SetShowFps(g_showFps);break;
+    case 4:g_disabledPostProcessingPaths=value?0:0x10u;RuntimeGameGraphicsOptions::SetDisabledPostProcessingPaths(g_disabledPostProcessingPaths);RuntimeConfigFile::SetDisabledPostProcessingPaths(g_disabledPostProcessingPaths);PcMarkCustom();break;
+    }}else {switch(row){
+    case 0:PcSetMsaa(value?4:1);PcMarkCustom();break;
+    case 1:PcSetAnisotropy(value==2?16:value==1?8:1);PcMarkCustom();break;
+    case 2:{GX_SYNC_INLINE();g_disableCopyFilter=value;aurora_set_disable_copy_filter(g_disableCopyFilter);RuntimeConfigFile::SetDisableCopyFilter(g_disableCopyFilter);PcMarkCustom();break;}
+    case 3:{GX_SYNC_INLINE();g_frameInterpolationMode=value?1:0;aurora_set_frame_interpolation_fps(kFrameInterpolationTargetFps[g_frameInterpolationMode]);RuntimeConfigFile::SetFrameInterpolationFps(kFrameInterpolationTargetFps[g_frameInterpolationMode]);LimitResolutionForFrameRate();break;}
+    case 4:g_rumbleEnabled=value;PAD_HLE_SetRumbleEnabled(g_rumbleEnabled);RuntimeConfigFile::SetRumbleEnabled(g_rumbleEnabled);break;
+    }}
+}
+unsigned PcGraphicsScroller(unsigned sheet) {
+    if(sheet==2)return PcMenuLocale::LanguageIndex(RuntimeConfigFile::Get().gameLanguage.value_or("en"));
+    if(sheet)return static_cast<unsigned>(g_pcPreset);
+    for(size_t i=0;i<kResolutions.size();++i)if(std::fabs(kResolutions[i].scale-g_resolutionScale)<0.01f)return static_cast<unsigned>(i);
+    return 0;
+}
+void SetPcGraphicsScroller(unsigned sheet,unsigned value) {
+    if(sheet==2){if(value<5){RuntimeConfigFile::Mutable().gameLanguage=PcMenuLocale::Codes[value];RuntimeConfigFile::WriteSetting("system","language","\""+PcMenuLocale::Codes[value]+"\"");PcMenuHooks::LanguageChanged();}return;}
+    if(sheet){if(value<5)PcApplyPreset(value);}
+    else if(value<kResolutions.size()){SetResolutionScale(kResolutions[value].scale);LimitResolutionForFrameRate();PcMarkCustom();}
 }
 
 void NotifyStrapInputAccepted() noexcept {

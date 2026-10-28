@@ -472,6 +472,7 @@ void SystemBridge::DumpCrashHeuristics(std::ostream& os, const CpuContext* cpu,
     }
 }
 
+#include "pc_live_locale.h"
 // MEM2 space reserved at startup for the runtime FST.
 extern "C" uint32_t g_dvdFstReservedBase = 0;
 extern "C" uint32_t g_dvdFstReservedSize = 0;
@@ -564,7 +565,9 @@ void SystemBridge::SeedLowMemDefaults(const Memory::Config& config) {
         // Reserve FST memory before guest code can use this part of the arena.
         g_dvdFstReservedSize = kDvdFstReserveSize;
         g_dvdFstReservedBase = ipcBufLo - kDvdFstReserveSize;
-        const uint32_t mem2ArenaHi = g_dvdFstReservedBase;
+        const auto localeSize=PcLiveLocale::RequiredBytes();
+        const uint32_t mem2ArenaHi = g_dvdFstReservedBase-localeSize;
+        if(localeSize)PcLiveLocale::Install(mem2ArenaHi);
 
         entries.push_back({0x80003118u, mem2Size, "Physical MEM2 size", true});
         entries.push_back({0x8000311Cu, mem2Size, "Simulated MEM2 size", true});
