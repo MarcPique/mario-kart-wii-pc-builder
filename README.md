@@ -5,6 +5,7 @@
 [![Descargar](https://img.shields.io/github/v/release/MarcPique/mario-kart-wii-pc-builder?style=for-the-badge&label=DESCARGAR&color=009bd7)](https://github.com/MarcPique/mario-kart-wii-pc-builder/releases/latest)
 ![Windows x64](https://img.shields.io/badge/Windows-x64-1478c8?style=for-the-badge&logo=windows)
 ![Tu disco](https://img.shields.io/badge/ISO-local-343c4a?style=for-the-badge)
+[![Online habilitado](https://img.shields.io/badge/Online-HABILITADO%20%C2%B7%20Retro%20WFC-27ae60?style=for-the-badge)](#online-habilitado)
 [![Licencia](https://img.shields.io/badge/Licencia-GPL--3.0-56a85b?style=for-the-badge)](LICENSE)
 
 ### Tu disco de Mario Kart Wii. Tu juego de Windows.
@@ -17,13 +18,15 @@
 
 Este builder genera una instalación nativa para Windows a partir de **tu propio disco PAL RMCP01**, con opciones de PC integradas en los menús del juego. El instalador público **no contiene la ROM, el juego recompilado, partidas ni claves de consola**.
 
+**✅ Online habilitado mediante Retro WFC:** login, amigos y salas integrados en el propio juego, sin cerrar ni cambiar de ejecutable. Las salas se consultan al iniciar y se actualizan automáticamente cada **40 segundos**.
+
 ## Lo que incluye
 
 | 🏁 El juego | ⚙️ Opciones de PC | 🌍 Idiomas y online |
 |---|---|---|
 | Ventana **Mario Kart Wii** | **Opciones avanzadas** en Opciones y pausa | Español, English, Français, Deutsch e Italiano |
 | Icono en EXE, ventana y barra de tareas | Presets, resolución, formato, V-Sync, AA y anisotropía | **Idioma inmediato**, sin reiniciar |
-| Presentación original y preparación oculta | Controles, fuentes y animaciones nativos | Retro WFC en la misma sesión |
+| Presentación original y preparación oculta | Controles, fuentes y animaciones nativos | **Online habilitado: Retro WFC** en la misma sesión |
 | EXE de arranque en el escritorio | Sin barra flotante ni necesidad de F10 | Salas al abrir y cada **40 segundos** |
 
 El icono completo se obtiene **localmente del banner de tu disco**. La integración usa Retro Rewind **6.13.4**, incluido su contenido adicional y sus cambios de jugabilidad.
@@ -63,7 +66,9 @@ Puedes cambiar resolución interna y de ventana, modo de pantalla, formato, V-Sy
 
 **El idioma cambia al instante**, incluidos los textos de menús ya abiertos y el nombre del botón. AA y anisotropía se guardan para el siguiente arranque; bloom se aplica al cargar una escena. Las demás opciones se aplican en vivo cuando lo permite el renderizador.
 
-Entra en **Retro WFC** desde el menú del juego. Login, amigos y salas utilizan sus menús nativos en el mismo proceso. Se han probado el login y la creación y cierre de una sala de amigos. La disponibilidad y las normas dependen de [Retro WFC](https://rwfc.net/).
+## Online habilitado
+
+El online viene habilitado mediante **Retro WFC**, con la integración de Retro Rewind 6.13.4. Entra en **Retro WFC** desde el menú del juego. Login, amigos y salas utilizan sus menús nativos en el mismo proceso. Se han probado el login y la creación y cierre de una sala de amigos. La disponibilidad y las normas dependen de [Retro WFC](https://rwfc.net/).
 
 ## Archivos y partidas
 
