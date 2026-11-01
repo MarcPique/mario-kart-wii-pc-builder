@@ -4,6 +4,8 @@
 #include "pc_menu_hooks.h"
 #include "pc_graphics_settings.h"
 #include "pc_online_rooms.h"
+#include "pc_match_filter.h"
+#include "pc_room_order.h"
 #include "pc_menu_locale.h"
 #include "pc_live_locale.h"
 #include <cstring>
@@ -12,6 +14,7 @@
 #include <algorithm>
 #include <cmath>
 #include <unordered_set>
+#include <charconv>
 namespace {
 constexpr uint32_t kLabel=0x7E000000u,kPcButtonId=0x7F00;
 struct Resource {std::array<uint32_t,6> args;};
@@ -22,6 +25,33 @@ std::unordered_map<uint32_t,std::u16string> messages;
 std::unordered_set<uint32_t> stockLabels;
 std::array<uint32_t,5> originalRadioCounts{};
 uint32_t activePage=0,ownerPage=0,sheet=0,textScratch=0;
+unsigned selectedController=0;
+unsigned selectedRoom=0;
+std::vector<std::string> roomIds;
+std::vector<std::u16string> roomValues;
+std::string pendingRoomId;
+std::string pendingRoomKey;
+std::string probeChosenRoomId;
+std::vector<uint32_t> probeKnownPeers;
+size_t probeMemberOffset=0;
+bool roomSearchStarted=false;
+bool probeJoinedTarget=false;
+unsigned roomRouteStage=0,roomRouteFrames=0;
+bool roomPageRequested=false,roomPageActive=false;
+uint32_t roomPage=0;
+size_t roomPageOffset=0;
+size_t roomPageCapacity=0;
+bool roomPageHasNext=false;
+uint64_t roomListRevision=0;
+std::u16string roomNotice;
+bool roomNoticeRefreshing=false;
+uint32_t routeNoticePage=0;
+unsigned routeNoticeFrames=0;
+std::array<uint32_t,5> roomOriginalHandler{};
+struct RoomButtonState {uint32_t address;uint8_t hidden,inaccessible;};
+std::vector<RoomButtonState> roomButtonStates;
+std::vector<std::u16string> visibleControllers;
+std::string visibleUpdateState;
 bool creatingPc=false,closingPc=false;
 bool backgroundAdded=false;
 std::vector<std::pair<uint32_t,uint8_t>> hiddenOwner;
@@ -56,32 +86,116 @@ scales={T(u"Segun ventana",u"Window size",u"Selon la fenêtre",u"Fenstergröße"
 presets={u"Original Wii",T(u"Bajo",u"Low",u"Faible",u"Niedrig",u"Bassa"),T(u"Medio",u"Medium",u"Moyenne",u"Mittel",u"Media"),T(u"Alto",u"High",u"Élevée",u"Hoch",u"Alta"),u"Ultra",T(u"Personalizado",u"Custom",u"Personnalisée",u"Benutzerdefiniert",u"Personalizzata")};
 }
 void Bottom(CpuContext* ctx,const std::u16string& value){if(activePage)Text(ctx,Memory::Read32(activePage+0x2BC),80,value);}
+std::u16string ControllersTitle(){return T(u"Mandos",u"Controllers",u"Manettes",u"Controller",u"Controller");}
+std::u16string UpdatesTitle(){return T(u"Actualizaciones",u"Updates",u"Mises à jour",u"Updates",u"Aggiornamenti");}
+std::u16string RoomsTitle(){return T(u"Salas publicas",u"Public rooms",u"Salles publiques",u"Öffentliche Räume",u"Stanze pubbliche");}
+void RefreshRoomChoices(){
+    const auto snapshot=PcOnlineRooms::Get();roomListRevision=snapshot.revision;
+    std::vector<std::string> available;
+    if(snapshot.available)for(const auto& room:snapshot.rooms){
+        if(!room.publicJoinable || !PcOnlineRooms::IsRetroRoomMode(room.roomKey) || room.memberPids.empty())continue;
+        available.push_back(room.id);
+    }
+    roomIds=PcOnlineRooms::StableRoomOrder(roomPageActive?roomIds:std::vector<std::string>{},available);
+    roomValues.clear();
+    for(size_t index=0;index<roomIds.size();++index){
+        const auto match=std::find_if(snapshot.rooms.begin(),snapshot.rooms.end(),[&](const auto& room){return snapshot.available&&room.id==roomIds[index]&&room.publicJoinable&&!room.memberPids.empty()&&PcOnlineRooms::IsRetroRoomMode(room.roomKey);});
+        if(match==snapshot.rooms.end()){const auto text=std::string("-- ")+std::to_string(index+1);roomValues.emplace_back(text.begin(),text.end());continue;}
+        const auto& room=*match;
+        const auto& key=room.roomKey;
+        const auto label=key=="vs_10"?"Retro":key=="vs_11"?"OTT":key=="vs_12"?"200cc":key=="vs_13"?"Items":key=="vs_14"?"Battle":key=="vs_15"?"Elim":key=="vs_20"?"CT":key=="vs_21"?"Normal":"CT200";
+        const auto count=std::to_string(room.players)+"/12";
+        const auto text=std::string(label)+std::to_string(index+1)+" "+count;
+        roomValues.emplace_back(text.begin(),text.end());
+    }
+    if(roomValues.empty())roomValues.push_back(T(u"Sin salas disponibles",u"No rooms available",u"Aucune salle disponible",u"Keine Räume verfügbar",u"Nessuna stanza disponibile"));
+    selectedRoom=std::min<unsigned>(selectedRoom,roomValues.size()-1);
+}
+void RenderRoomPage(CpuContext* ctx){
+    const auto countButtons=roomButtonStates.size();if(!countButtons)return;
+    const auto testLimit=std::getenv("MKW_PC_ROOM_PAGE_TEST")?std::min<size_t>(4,countButtons-1):countButtons-1;
+    roomPageHasNext=countButtons>1&&roomIds.size()>(std::getenv("MKW_PC_ROOM_PAGE_TEST")?testLimit:countButtons);
+    roomPageCapacity=roomPageHasNext?testLimit:countButtons;
+    if(roomPageOffset>=roomIds.size())roomPageOffset=0;
+    for(unsigned i=0;i<countButtons;++i){const auto button=roomButtonStates[i].address;const bool next=roomPageHasNext&&i==roomPageCapacity;const auto index=roomPageOffset+i;const bool hidden=!next&&(i>=roomPageCapacity||index>=roomIds.size());
+        Memory::Write8(button+0x80,hidden);Memory::Write8(button+0x1E9,hidden);
+        if(next)Text(ctx,button,120+i,T(u"Mas salas",u"More rooms",u"Plus de salles",u"Mehr Räume",u"Altre stanze"));
+        else if(!hidden)Text(ctx,button,120+i,roomValues[index]);
+    }
+}
+bool ShowRoomPage(CpuContext* ctx,uint32_t page){
+    const auto count=Memory::Read32(page+0x3D8);
+    if(count==0||count>16)return false;
+    std::vector<RoomButtonState> controls;
+    for(unsigned i=0;i<count;++i){
+        const auto button=page+0x6C4+i*0x254;
+        if(!resources.contains(button)||Memory::Read32(button+0x234)!=page+0x658)return false;
+        controls.push_back({button,Memory::Read8(button+0x80),Memory::Read8(button+0x1E9)});
+    }
+    for(unsigned i=0;i<5;++i)roomOriginalHandler[i]=Memory::Read32(page+0x658+i*4);
+    roomButtonStates=std::move(controls);roomPage=page;roomPageActive=true;
+    Memory::Write32(page+0x668,MKW_GADDR(8064BCE8));
+    roomIds.clear();RefreshRoomChoices();roomPageOffset=0;roomNotice.clear();roomNoticeRefreshing=false;RenderRoomPage(ctx);
+    Text(ctx,Memory::Read32(page+0x2B8),150,RoomsTitle());
+    Text(ctx,Memory::Read32(page+0x2BC),151,T(u"Elige una sala publica. B: volver.",u"Choose a public room. B: back.",u"Choisissez une salle. B : retour.",u"Raum wählen. B: zurück.",u"Scegli una stanza. B: indietro."));
+    RT_LOGF("pc-ui-test","Native room page configured with %zu entries\n",std::min(roomIds.size(),roomButtonStates.size()));
+    return true;
+}
+void NextRoomPage(CpuContext* ctx){
+    if(!roomPageHasNext||!roomPageCapacity)return;
+    roomPageOffset=(roomPageOffset+roomPageCapacity>=roomIds.size())?0:roomPageOffset+roomPageCapacity;
+    roomNotice.clear();roomNoticeRefreshing=false;RenderRoomPage(ctx);
+    RT_LOGF("pc-ui-test","Room list moved to offset %zu\n",roomPageOffset);
+}
+void RestoreRoomPage(){
+    if(!roomPageActive)return;
+    for(unsigned i=0;i<5;++i)Memory::Write32(roomPage+0x658+i*4,roomOriginalHandler[i]);
+    for(const auto& control:roomButtonStates){Memory::Write8(control.address+0x80,control.hidden);Memory::Write8(control.address+0x1E9,control.inaccessible);}
+    roomButtonStates.clear();roomPage=0;roomPageActive=false;roomPageRequested=false;
+}
+std::string UpdateStateKey(){const auto state=PcOnlineRooms::GetUpdates();return std::to_string(state.checked)+std::to_string(state.available)+std::to_string(state.newer)+state.installed+"/"+state.latest;}
+std::u16string UpdateDetail(){const auto state=PcOnlineRooms::GetUpdates();if(!state.checked)return T(u"Buscando actualizaciones...",u"Checking for updates...",u"Recherche de mises à jour...",u"Suche nach Updates...",u"Ricerca aggiornamenti...");if(!state.available)return T(u"No se pudo comprobar la version.",u"Unable to check version.",u"Vérification impossible.",u"Prüfung nicht möglich.",u"Impossibile verificare.");if(state.newer)return T(u"Nueva version: necesita recompilar el juego.",u"New version: the game must be rebuilt.",u"Nouvelle version : recompilation nécessaire.",u"Neue Version: Neuübersetzung nötig.",u"Nuova versione: ricompilazione necessaria.");return T(u"Retro Rewind esta actualizado.",u"Retro Rewind is up to date.",u"Retro Rewind est à jour.",u"Retro Rewind ist aktuell.",u"Retro Rewind è aggiornato.");}
 void Configure(CpuContext* ctx,uint32_t page) {
     RefreshMenuTranslations();
-    const auto title=sheet==2?PcMenuLocale::Language():sheet==1?PcMenuLocale::Quality():PcMenuLocale::Display();
+    const auto title=sheet==5?RoomsTitle():sheet==4?UpdatesTitle():sheet==3?ControllersTitle():sheet==2?PcMenuLocale::Language():sheet==1?PcMenuLocale::Quality():PcMenuLocale::Display();
     Memory::Write32(page+0x3E4,Label(1,title));Text(ctx,Memory::Read32(page+0x2B8),1,title);
-    const auto& choices=sheet==2?choices2:sheet==1?choices1:choices0;const auto& names=sheet==2?names2:sheet==1?names1:names0;
+    const auto devices=settings_overlay::PcControllerDevices();
+    visibleControllers=devices;
+    selectedController=std::min<unsigned>(selectedController,devices.size()-1);
+    auto controllerChoices=choices2;
+    auto controllerNames=names2;
+    for(unsigned i=0;i<4;++i){controllerNames[i]=settings_overlay::PcControllerPlayerName(i);controllerChoices[i]={T(u"Vaciar",u"Clear",u"Effacer",u"Leeren",u"Cancella"),T(u"Asignar",u"Assign",u"Attribuer",u"Zuordnen",u"Assegna")};}
+    auto updateChoices=choices2;auto updateNames=names2;
+    updateNames[0]=T(u"Comprobacion",u"Version check",u"Vérification",u"Versionsprüfung",u"Verifica");
+    updateChoices[0]={T(u"Revisar",u"Check",u"Vérifier",u"Prüfen",u"Verifica")};
+    auto roomChoices=updateChoices;auto roomNames=updateNames;
+    roomNames[0]=T(u"Sala",u"Room",u"Salle",u"Raum",u"Stanza");roomChoices[0]={T(u"Elegir",u"Select",u"Choisir",u"Wählen",u"Seleziona")};
+    const auto& choices=sheet==5?roomChoices:sheet==4?updateChoices:sheet==3?controllerChoices:sheet==2?choices2:sheet==1?choices1:choices0;const auto& names=sheet==5?roomNames:sheet==4?updateNames:sheet==3?controllerNames:sheet==2?names2:sheet==1?names1:names0;
     for(unsigned i=0;i<5;++i) {
         auto radio=page+0x6C4+i*0x298;const auto count=std::min<unsigned>(originalRadioCounts[i],choices[i].size());
-        Memory::Write8(radio+0x80,sheet==2&&i>2);Memory::Write8(radio+0x285,sheet==2&&i>2);
-        Memory::Write32(radio+0x200,count);auto selected=std::min(settings_overlay::PcGraphicsValue(sheet,i),count?count-1:0);
+        const bool hidden=(sheet==2&&i>2)||(sheet==3&&i>3)||(sheet>=4&&i>0);
+        Memory::Write8(radio+0x80,hidden);Memory::Write8(radio+0x285,hidden);
+        Memory::Write32(radio+0x200,count);auto selected=std::min(sheet>=4?0u:sheet==3?static_cast<unsigned>(settings_overlay::PcControllerSelected(i,selectedController)):settings_overlay::PcGraphicsValue(sheet,i),count?count-1:0);
         Memory::Write32(radio+0x204,selected);Memory::Write32(radio+0x208,selected);
         Text(ctx,radio,10+i,names[i]);const auto options=Memory::Read32(radio+0x294);
         for(unsigned j=0;j<originalRadioCounts[i];++j){auto button=options+j*0x17C;Memory::Write8(button+0x80,j>=count);Invoke(ctx,MKW_GADDR(80606C48),{button,j==selected});if(j<count)Text(ctx,button,20+i*4+j,choices[i][j]);}
         RT_LOGF("pc-options","Native row %u supports %u choices\n",i,originalRadioCounts[i]);
     }
-    const auto scroller=page+0x13BC;const auto& values=sheet==2?PcMenuLocale::Languages:sheet==1?presets:scales;
-    Invoke(ctx,MKW_GADDR(8063F0C0),{scroller,static_cast<uint32_t>(values.size()),settings_overlay::PcGraphicsScroller(sheet)});
-    Text(ctx,scroller,50,sheet==2?PcMenuLocale::Language():sheet==1?T(u"Calidad",u"Quality",u"Qualité",u"Qualität",u"Qualità"):T(u"Resolucion interna",u"Internal Resolution",u"Résolution interne",u"Interne Auflösung",u"Risoluzione interna"));
-    const auto value=std::min<unsigned>(settings_overlay::PcGraphicsScroller(sheet),values.size()-1);
+    const std::vector<std::u16string> updateValues{PcOnlineRooms::UpdateSummary()};
+    const auto scroller=page+0x13BC;const auto& values=sheet==5?roomValues:sheet==4?updateValues:sheet==3?devices:sheet==2?PcMenuLocale::Languages:sheet==1?presets:scales;
+    const auto position=sheet==5?selectedRoom:sheet==4?0u:sheet==3?selectedController:settings_overlay::PcGraphicsScroller(sheet);
+    Invoke(ctx,MKW_GADDR(8063F0C0),{scroller,static_cast<uint32_t>(values.size()),position});
+    Text(ctx,scroller,50,sheet==5?RoomsTitle():sheet==4?T(u"Version",u"Version",u"Version",u"Version",u"Versione"):sheet==3?T(u"Dispositivo",u"Device",u"Appareil",u"Gerät",u"Dispositivo"):sheet==2?PcMenuLocale::Language():sheet==1?T(u"Calidad",u"Quality",u"Qualité",u"Qualität",u"Qualità"):T(u"Resolucion interna",u"Internal Resolution",u"Résolution interne",u"Interne Auflösung",u"Risoluzione interna"));
+    const auto value=std::min<unsigned>(position,values.size()-1);
     Text(ctx,Memory::Read32(page+0x1984+0x464),51,values[value]);
-    const auto next=sheet==0?PcMenuLocale::Quality():sheet==1?PcMenuLocale::Language():PcMenuLocale::Display();
-    const auto external=Memory::Read32(page+0x48);if(Memory::Read32(page+0x4C))Text(ctx,Memory::Read32(external),60,next);
+    const auto next=sheet==0?PcMenuLocale::Quality():sheet==1?PcMenuLocale::Language():sheet==2?ControllersTitle():sheet==3?UpdatesTitle():PcMenuLocale::Display();
+    const auto external=Memory::Read32(page+0x48);if(Memory::Read32(page+0x4C)){const auto control=Memory::Read32(external);if(sheet==5)Memory::Write8(control+0x80,1);Text(ctx,control,60,next);}
     if(const auto bottom=Memory::Read32(page+0x2BC);bottom){const auto ownerId=ownerPage?Memory::Read32(ownerPage+4):0;Memory::Write8(bottom+0x80,ownerId>=0x17&&ownerId<=0x1A);}
-    Bottom(ctx,sheet==2?T(u"El idioma cambia inmediatamente. Guardado automatico.",u"Language changes immediately. Saved automatically.",u"Changement de langue immédiat. Sauvegarde auto.",u"Sprache wird sofort geändert. Automatisch gespeichert.",u"La lingua cambia subito. Salvataggio automatico."):sheet==1?T(u"Guardado automatico. AA y filtro se aplican al abrir el juego.",u"Saved automatically. AA and filtering apply next launch.",u"Sauvegarde auto. AA et filtre au prochain lancement.",u"Automatisch gespeichert. AA und Filter beim nächsten Start.",u"Salvataggio automatico. AA e filtro al prossimo avvio."):T(u"Guardado automatico. B: volver.",u"Saved automatically. B: back.",u"Sauvegarde auto. B : retour.",u"Automatisch gespeichert. B: zurück.",u"Salvataggio automatico. B: indietro."));
+    if(sheet==4)visibleUpdateState=UpdateStateKey();
+    Bottom(ctx,sheet==5?T(u"Elige una sala publica. B: volver.",u"Choose a public room. B: back.",u"Choisissez une salle. B : retour.",u"Raum wählen. B: zurück.",u"Scegli una stanza. B: indietro."):sheet==4?UpdateDetail():sheet==3?T(u"Elige un dispositivo y asignalo a un jugador.",u"Choose a device and assign it to a player.",u"Choisissez un appareil et un joueur.",u"Gerät und Spieler auswählen.",u"Scegli dispositivo e giocatore."):sheet==2?T(u"El idioma cambia inmediatamente. Guardado automatico.",u"Language changes immediately. Saved automatically.",u"Changement de langue immédiat. Sauvegarde auto.",u"Sprache wird sofort geändert. Automatisch gespeichert.",u"La lingua cambia subito. Salvataggio automatico."):T(u"Guardado automatico. B: volver.",u"Saved automatically. B: back.",u"Sauvegarde auto. B : retour.",u"Automatisch gespeichert. B: zurück.",u"Salvataggio automatico. B: indietro."));
 }
-void Open(CpuContext* ctx,uint32_t owner) {
-    if(activePage)return;ownerPage=owner;sheet=0;closingPc=false;
+void Open(CpuContext* ctx,uint32_t owner,bool rooms=false) {
+    if(activePage)return;ownerPage=owner;sheet=rooms?5:0;closingPc=false;if(rooms){selectedRoom=0;RefreshRoomChoices();PcOnlineRooms::Refresh();}
     const auto section=Section();auto page=Memory::Read32(section+8+0x73*4);
     if(!page){creatingPc=true;try{Invoke(ctx,MKW_GADDR(80622D08),{section,0x73});}catch(...){creatingPc=false;throw;}creatingPc=false;page=Memory::Read32(section+8+0x73*4);}
     if(!page)throw std::runtime_error("Original graphics page unavailable");
@@ -114,12 +228,22 @@ void AddButton(CpuContext* ctx,uint32_t page,uint32_t source,uint32_t last,unsig
 }
 void Position(uint32_t page) {
     const auto it=extraButtons.find(page);if(it==extraButtons.end())return;auto& e=it->second;
-    if(e.pause&&e.count>=4&&Memory::Read32(page+8)==4){
+    if(Memory::Read32(page+4)==0x8B){
+        // Place a copy of the original small settings control beside the
+        // first online mode, clear of the room count.
+        for(unsigned i=0;i<4;++i){const auto o=4+i*0x18;
+            Memory::WriteFloat32(e.button+o,20.0f-Memory::ReadFloat32(e.source+o));
+            Memory::WriteFloat32(e.button+o+4,Memory::ReadFloat32(e.source+o+4)-60.0f);
+        }
+        return;
+    }
+    if(e.pause&&e.count>=2&&Memory::Read32(page+8)==4){
         if(e.pauseLayout.empty())for(unsigned slot=0;slot<4;++slot)for(unsigned button=0;button<=e.count;++button){
             const auto p=(button==e.count?e.button:e.source+button*0x254)+4+slot*0x18;
             e.pauseLayout.push_back({Memory::ReadFloat32(p+4),Memory::ReadFloat32(p+12),Memory::ReadFloat32(p+16)});
         }
-        for(unsigned slot=0;slot<4;++slot){const auto base=slot*(e.count+1);const auto first=e.pauseLayout[base][0],last=e.pauseLayout[base+e.count-1][0];
+        for(unsigned slot=0;slot<4;++slot){const auto base=slot*(e.count+1);auto first=e.pauseLayout[base][0],last=e.pauseLayout[base+e.count-1][0];
+            if(e.count==2){const auto extra=(last-first)*0.25f;first-=extra;last+=extra;}
             for(unsigned button=0;button<=e.count;++button){const auto p=(button==e.count?e.button:e.source+button*0x254)+4+slot*0x18;
                 Memory::WriteFloat32(p+4,first+(last-first)*button/e.count);
                 Memory::WriteFloat32(p+12,e.pauseLayout[base+button][1]*0.86f);Memory::WriteFloat32(p+16,e.pauseLayout[base+button][2]*0.86f);
@@ -163,7 +287,7 @@ void RefreshLanguage(CpuContext* ctx){
 }
 }
 namespace PcMenuHooks {void NotifyClosed() noexcept {}void LanguageChanged() noexcept {languageRefresh=true;}}
-extern "C" void PcSectionInit(CpuContext* ctx){resources.clear();extraButtons.clear();messages.clear();stockLabels.clear();recordedText.clear();textOrder=0;hiddenOwner.clear();backgroundAdded=false;activePage=ownerPage=textScratch=0;closingPc=false;onlineRevision=~uint64_t{0};UpdateSystemLanguage();PcLiveLocale::SetRaceContext(Invoke(ctx,MKW_GADDR(80631588),{ctx->gpr[4]})==2);MKW_GUEST_NEXT(80621E00)(ctx);}
+extern "C" void PcSectionInit(CpuContext* ctx){resources.clear();extraButtons.clear();messages.clear();stockLabels.clear();recordedText.clear();textOrder=0;hiddenOwner.clear();backgroundAdded=false;activePage=ownerPage=textScratch=0;roomPage=routeNoticePage=routeNoticeFrames=0;roomPageActive=roomPageRequested=false;roomButtonStates.clear();pendingRoomId.clear();pendingRoomKey.clear();probeChosenRoomId.clear();probeKnownPeers.clear();probeMemberOffset=roomRouteStage=roomRouteFrames=0;roomSearchStarted=probeJoinedTarget=false;closingPc=false;onlineRevision=~uint64_t{0};UpdateSystemLanguage();PcLiveLocale::SetRaceContext(Invoke(ctx,MKW_GADDR(80631588),{ctx->gpr[4]})==2);MKW_GUEST_NEXT(80621E00)(ctx);}
 REGISTER_NATIVE_WRAPPER_AS(0x80621E00,PcSectionInit,"PcOriginalUI_SectionInit");
 extern "C" void PcButtonLoad(CpuContext* ctx){const auto button=ctx->gpr[3];Resource resource{};for(unsigned i=0;i<6;++i)resource.args[i]=ctx->gpr[4+i];MKW_GUEST_NEXT(805BD518)(ctx);resources[button]=resource;}
 REGISTER_NATIVE_WRAPPER_AS(0x805BD518,PcButtonLoad,"PcOriginalUI_ResourceCapture");
@@ -171,10 +295,23 @@ extern "C" void PcPageInit(CpuContext* ctx){const auto page=ctx->gpr[3],id=ctx->
     if(id==0xC0)Memory::Write32(page,0x808BA3ECu);
     if(id==0x73&&creatingPc)Memory::Write32(page,0x808DA3C8u);
     MKW_GUEST_NEXT(80601A60)(ctx);
+    if(id==0x8B && std::getenv("MKW_PC_UI_TEST_BRIDGE")) {
+        RT_LOGF("pc-ui-test","Online page %08X controls %u\n",page,Memory::Read32(page+0x34));
+        for(const auto& [control,resource]:resources)
+            if(control>=page && control-page<0x4000)RT_LOGF("pc-ui-test","Online loaded button offset %04X\n",control-page);
+    }
+    if(id==0x8C && std::getenv("MKW_PC_UI_TEST_BRIDGE")){
+        for(const auto& [control,resource]:resources)
+            if(control>=page && control-page<0x4000)RT_LOGF("pc-ui-test","Mode button offset %04X id %u\n",control-page,Memory::Read32(control+0x240));
+    }
     // The game locks its scene heaps during frame updates. Allocate native UI
     // memory while the section is loading, just like its existing pages do.
     if(!textScratch)textScratch=Alloc(ctx,4096);
     if(id==0xC0)AddButton(ctx,page,page+0x404,page+0x8AC,3,false,MKW_GADDR(805FD90C));
+    if(id==0x8B){
+        AddButton(ctx,page,page+0xFAC,page+0xFAC,1,false,MKW_GADDR(8064BCE8));
+        if(extraButtons.contains(page))Text(ctx,extraButtons.at(page).button,110,T(u"Salas",u"Rooms",u"Salles",u"Räume",u"Stanze"));
+    }
     if(id==0xC0||(id>=0x17&&id<=0x1A)){
         const auto section=Section();if(!Memory::Read32(section+8+0x73*4)){
             creatingPc=true;try{Invoke(ctx,MKW_GADDR(80622D08),{section,0x73});}catch(...){creatingPc=false;throw;}creatingPc=false;
@@ -192,28 +329,87 @@ extern "C" void PcOptionsClick(CpuContext* ctx){const auto p=ctx->gpr[3];if(extr
 REGISTER_NATIVE_WRAPPER_AS(0x805FD90C,PcOptionsClick,"PcOriginalUI_OptionsClick");
 extern "C" void PcSettingsActivate(CpuContext* ctx){const auto page=ctx->gpr[3];if(page!=activePage){MKW_GUEST_NEXT(8085354C)(ctx);return;}Memory::Write32(page+0x3E4,Label(1,PcMenuLocale::Display()));Invoke(ctx,MKW_GADDR(80837170),{page});Configure(ctx,page);Invoke(ctx,MKW_GADDR(80605D74),{page+0x6C4,0});}
 REGISTER_NATIVE_WRAPPER_AS(0x8085354C,PcSettingsActivate,"PcOriginalUI_GraphicsActivate");
-extern "C" void PcSettingsButton(CpuContext* ctx){if(ctx->gpr[3]!=activePage){MKW_GUEST_NEXT(80853654)(ctx);return;}if(ctx->gpr[4]==activePage+0x54){Close(ctx,activePage);return;}sheet=(sheet+1)%3;Configure(ctx,activePage);Invoke(ctx,MKW_GADDR(80602378),{activePage});}
+extern "C" void PcSettingsButton(CpuContext* ctx){if(ctx->gpr[3]!=activePage){MKW_GUEST_NEXT(80853654)(ctx);return;}if(ctx->gpr[4]==activePage+0x54){Close(ctx,activePage);return;}if(sheet==5)return;sheet=(sheet+1)%5;Configure(ctx,activePage);Invoke(ctx,MKW_GADDR(80602378),{activePage});}
 REGISTER_NATIVE_WRAPPER_AS(0x80853654,PcSettingsButton,"PcOriginalUI_GraphicsSheet");
 extern "C" void PcSettingsBack(CpuContext* ctx){if(ctx->gpr[3]==activePage)Close(ctx,activePage);else MKW_GUEST_NEXT(808536B4)(ctx);}
 REGISTER_NATIVE_WRAPPER_AS(0x808536B4,PcSettingsBack,"PcOriginalUI_GraphicsBack");
-extern "C" void PcRadioClick(CpuContext* ctx){if(ctx->gpr[3]!=activePage){MKW_GUEST_NEXT(80853714)(ctx);return;}auto row=Memory::Read32(ctx->gpr[4]+0x20C);if(row<5)settings_overlay::SetPcGraphicsValue(sheet,row,ctx->gpr[6]);}
+extern "C" void PcRadioClick(CpuContext* ctx){if(ctx->gpr[3]!=activePage){MKW_GUEST_NEXT(80853714)(ctx);return;}auto row=Memory::Read32(ctx->gpr[4]+0x20C);if(sheet==5){if(row==0&&selectedRoom<roomIds.size()){pendingRoomId=roomIds[selectedRoom];RT_LOGF("pc-ui-test","Public room selected in native menu\n");Close(ctx,activePage);}}else if(sheet==4){if(row==0){PcOnlineRooms::RefreshUpdates();Bottom(ctx,UpdateDetail());}}else if(sheet==3&&row<4){settings_overlay::PcControllerAssign(row,selectedController,ctx->gpr[6]!=0);Configure(ctx,activePage);}else if(row<5&&sheet<3)settings_overlay::SetPcGraphicsValue(sheet,row,ctx->gpr[6]);}
 REGISTER_NATIVE_WRAPPER_AS(0x80853714,PcRadioClick,"PcOriginalUI_GraphicsChoice");
-extern "C" void PcRadioSelect(CpuContext* ctx){if(ctx->gpr[3]!=activePage){MKW_GUEST_NEXT(8085389C)(ctx);return;}Bottom(ctx,T(u"Izquierda/derecha y A: elegir. B: volver.",u"Left/right and A: select. B: back.",u"Gauche/droite et A : choisir. B : retour.",u"Links/rechts und A: wählen. B: zurück.",u"Sinistra/destra e A: scegli. B: indietro."));}
+extern "C" void PcRadioSelect(CpuContext* ctx){if(ctx->gpr[3]!=activePage){MKW_GUEST_NEXT(8085389C)(ctx);return;}Bottom(ctx,sheet==4?UpdateDetail():T(u"Izquierda/derecha y A: elegir. B: volver.",u"Left/right and A: select. B: back.",u"Gauche/droite et A : choisir. B : retour.",u"Links/rechts und A: wählen. B: zurück.",u"Sinistra/destra e A: scegli. B: indietro."));}
 REGISTER_NATIVE_WRAPPER_AS(0x8085389C,PcRadioSelect,"PcOriginalUI_GraphicsHint");
-extern "C" void PcScrollChange(CpuContext* ctx){if(ctx->gpr[3]!=activePage){MKW_GUEST_NEXT(80853998)(ctx);return;}settings_overlay::SetPcGraphicsScroller(sheet,ctx->gpr[6]);if(sheet==1)Configure(ctx,activePage);}
+extern "C" void PcScrollChange(CpuContext* ctx){if(ctx->gpr[3]!=activePage){MKW_GUEST_NEXT(80853998)(ctx);return;}if(sheet==5){selectedRoom=std::min<unsigned>(ctx->gpr[6],roomValues.size()-1);return;}if(sheet==4)return;if(sheet==3){const auto devices=settings_overlay::PcControllerDevices();selectedController=std::min<unsigned>(ctx->gpr[6],devices.size()-1);Configure(ctx,activePage);}else{settings_overlay::SetPcGraphicsScroller(sheet,ctx->gpr[6]);if(sheet==1)Configure(ctx,activePage);}}
 REGISTER_NATIVE_WRAPPER_AS(0x80853998,PcScrollChange,"PcOriginalUI_GraphicsScroll");
-extern "C" void PcTextChange(CpuContext* ctx){if(ctx->gpr[3]!=activePage){MKW_GUEST_NEXT(80853A10)(ctx);return;}const auto& values=sheet==2?PcMenuLocale::Languages:sheet==1?presets:scales;auto value=std::min<unsigned>(ctx->gpr[5],values.size()-1);Text(ctx,ctx->gpr[4],51,values[value]);}
+extern "C" void PcTextChange(CpuContext* ctx){if(ctx->gpr[3]!=activePage){MKW_GUEST_NEXT(80853A10)(ctx);return;}const auto devices=settings_overlay::PcControllerDevices();const std::vector<std::u16string> updateValues{PcOnlineRooms::UpdateSummary()};const auto& values=sheet==5?roomValues:sheet==4?updateValues:sheet==3?devices:sheet==2?PcMenuLocale::Languages:sheet==1?presets:scales;auto value=std::min<unsigned>(ctx->gpr[5],values.size()-1);Text(ctx,ctx->gpr[4],51,values[value]);}
 REGISTER_NATIVE_WRAPPER_AS(0x80853A10,PcTextChange,"PcOriginalUI_GraphicsValueText");
 extern "C" void PcExternalSelect(CpuContext* ctx){if(ctx->gpr[3]!=activePage){MKW_GUEST_NEXT(80853684)(ctx);return;}Bottom(ctx,T(u"Ver la siguiente pagina de opciones avanzadas.",u"Open the next page of advanced options.",u"Ouvrir la page suivante des options avancées.",u"Nächste Seite der erweiterten Optionen öffnen.",u"Apri la pagina successiva delle opzioni avanzate."));}
 REGISTER_NATIVE_WRAPPER_AS(0x80853684,PcExternalSelect,"PcOriginalUI_GraphicsNextHint");
 extern "C" void PcPageUpdate(CpuContext* ctx){const auto page=ctx->gpr[3];MKW_GUEST_NEXT(80602338)(ctx);Position(page);
+    if(!pendingRoomId.empty() && Memory::Read32(page+4)==0x8C && Memory::Read32(page+8)==4){
+        const auto section=Section(),layers=Memory::Read32(section+0x37C);
+        if(layers&&layers<=11 && Memory::Read32(section+0x354+(layers-1)*4)==page)roomSearchStarted=true;
+    }
+    if(roomPageRequested && !roomPageActive && Memory::Read32(page+4)==0x108 && Memory::Read32(page+8)==4){
+        if(!ShowRoomPage(ctx,page)){roomPageRequested=false;RT_LOGF("pc-ui-test","Room page layout mismatch; original settings retained\n");}
+    }
+    if(roomPageActive && page==roomPage && Memory::Read32(page+8)==4){
+        if(PcOnlineRooms::Get().revision!=roomListRevision){
+            const bool refreshing=roomNoticeRefreshing;RefreshRoomChoices();RenderRoomPage(ctx);
+            if(std::getenv("MKW_PC_UI_TEST_BRIDGE"))RT_LOGF("pc-ui-test","Refreshed visible room list at revision %llu\n",static_cast<unsigned long long>(roomListRevision));
+            if(refreshing){roomNotice=PcOnlineRooms::Get().available?T(u"Sala no disponible. Lista actualizada.",u"Room unavailable. List updated.",u"Salle indisponible. Liste actualisée.",u"Raum nicht verfügbar. Liste aktualisiert.",u"Stanza non disponibile. Lista aggiornata."):T(u"No se pudo actualizar la lista.",u"Could not refresh the list.",u"Actualisation impossible.",u"Liste konnte nicht aktualisiert werden.",u"Impossibile aggiornare la lista.");roomNoticeRefreshing=false;}
+        }
+        Text(ctx,Memory::Read32(page+0x2BC),151,roomNotice.empty()?T(u"Elige una sala publica. B: volver.",u"Choose a public room. B: back.",u"Choisissez une salle. B : retour.",u"Raum wählen. B: zurück.",u"Scegli una stanza. B: indietro."):roomNotice);
+    }
+    if(roomPageActive && page==roomPage && Memory::Read32(page+8)<=1)RestoreRoomPage();
+    if(roomPageActive && Memory::Read32(page+4)==0x8B && Memory::Read32(page+8)==4){
+        const auto section=Section(),layers=Memory::Read32(section+0x37C);
+        if(layers&&layers<=11 && Memory::Read32(section+0x354+(layers-1)*4)==page)RestoreRoomPage();
+    }
+    if(roomSearchStarted && Memory::Read32(page+4)==0x8B && Memory::Read32(page+8)==4){
+        const auto section=Section(),layers=Memory::Read32(section+0x37C);
+        if(layers&&layers<=11 && Memory::Read32(section+0x354+(layers-1)*4)==page){pendingRoomId.clear();pendingRoomKey.clear();probeChosenRoomId.clear();probeKnownPeers.clear();probeMemberOffset=0;roomSearchStarted=probeJoinedTarget=false;RT_LOGF("pc-ui-test","Cleared room selection after returning to online menu\n");}
+    }
+    if(roomRouteStage && !roomPageActive && Memory::Read32(page+8)==4){
+        const auto route=PcOnlineRooms::RouteForRoomMode(pendingRoomKey);const auto id=Memory::Read32(page+4);
+        if(route && roomRouteStage==1 && id==0x8B && ++roomRouteFrames>=10){
+            const auto snapshot=PcOnlineRooms::Get();const bool forceFailure=std::getenv("MKW_PC_UI_TEST_BRIDGE")&&std::getenv("MKW_PC_ROOM_ROUTE_FAIL_TEST");const bool available=!forceFailure&&snapshot.available&&std::any_of(snapshot.rooms.begin(),snapshot.rooms.end(),[](const auto& room){return room.id==pendingRoomId&&room.roomKey==pendingRoomKey&&room.publicJoinable;});
+            const auto button=page+route->mainOffset;
+            if(available&&resources.contains(button)&&Memory::Read32(button+0x240)==route->mainId){
+                const auto holder=Memory::Read32(button+0x234),handler=holder?Memory::Read32(holder+16):0;
+                if(handler){roomRouteStage=2;roomRouteFrames=0;RT_LOGF("pc-ui-test","Routing selected room through native online category\n");Invoke(ctx,handler,{page,button,0});}
+                else {roomRouteStage=0;pendingRoomId.clear();pendingRoomKey.clear();probeKnownPeers.clear();routeNoticePage=page;routeNoticeFrames=300;RT_LOGF("pc-ui-test","Selected room category handler unavailable\n");}
+            }else {roomRouteStage=0;pendingRoomId.clear();pendingRoomKey.clear();probeKnownPeers.clear();routeNoticePage=page;routeNoticeFrames=300;PcOnlineRooms::Refresh();RT_LOGF("pc-ui-test","Selected room or online category unavailable before routing\n");}
+        }else if(route && roomRouteStage==2 && id==0x8C && ++roomRouteFrames>=10){
+            uint32_t target=0;
+            for(const auto& [control,resource]:resources)if(control>=page&&control-page<0x4000&&Memory::Read32(control+0x240)==route->modeId&&!Memory::Read8(control+0x80)&&!Memory::Read8(control+0x1E9)){target=control;break;}
+            roomRouteStage=0;
+            if(target){const auto holder=Memory::Read32(target+0x234),handler=holder?Memory::Read32(holder+16):0;
+                if(handler){RT_LOGF("pc-ui-test","Routing selected room through native mode\n");Invoke(ctx,handler,{page,target,0});}
+                else {pendingRoomId.clear();pendingRoomKey.clear();probeKnownPeers.clear();routeNoticePage=page;routeNoticeFrames=300;RT_LOGF("pc-ui-test","Selected room mode handler unavailable\n");}
+            }else {pendingRoomId.clear();pendingRoomKey.clear();probeKnownPeers.clear();routeNoticePage=page;routeNoticeFrames=300;RT_LOGF("pc-ui-test","Selected room mode unavailable\n");}
+        }
+    }
+    if(page==routeNoticePage && routeNoticeFrames && Memory::Read32(page+8)==4){
+        const auto id=Memory::Read32(page+4),bottom=id==0x8B?0xB98u:id==0x8C?0x914u:0u;
+        if(bottom)Text(ctx,page+bottom,152,T(u"Sala no disponible. Elige otra sala.",u"Room unavailable. Choose another room.",u"Salle indisponible. Choisissez une autre salle.",u"Raum nicht verfügbar. Anderen Raum wählen.",u"Stanza non disponibile. Scegli un'altra stanza."));
+        if(!--routeNoticeFrames){routeNoticePage=0;if(bottom)Text(ctx,page+bottom,153,T(u"Elige una opcion. B: volver.",u"Choose an option. B: back.",u"Choisissez une option. B : retour.",u"Option wählen. B: zurück.",u"Scegli un'opzione. B: indietro."));}
+    }
+    if(std::getenv("MKW_PC_UI_TEST_BRIDGE") && Memory::Read32(page+4)==0x8B && Memory::Read32(page+8)==4 && extraButtons.contains(page)){
+        static unsigned samples=0;if(++samples==180){const auto button=extraButtons.at(page).button,other=page+0x1200;
+            RT_LOGF("pc-ui-test","Room bounds %.1f %.1f %.1f %.1f; main bounds %.1f %.1f %.1f %.1f; inaccessible %u, parent %08X\n",
+                Memory::ReadFloat32(button+0x184),Memory::ReadFloat32(button+0x188),Memory::ReadFloat32(button+0x190),Memory::ReadFloat32(button+0x194),
+                Memory::ReadFloat32(other+0x184),Memory::ReadFloat32(other+0x188),Memory::ReadFloat32(other+0x190),Memory::ReadFloat32(other+0x194),
+                Memory::Read8(button+0x1E9),Memory::Read32(button+0x1B0));
+        }
+    }
+    if(page==activePage&&sheet==3&&!closingPc&&settings_overlay::PcControllerDevices()!=visibleControllers){selectedController=0;Configure(ctx,page);}
+    if(page==activePage&&sheet==4&&!closingPc&&UpdateStateKey()!=visibleUpdateState)Configure(ctx,page);
     if(languageRefresh&&textScratch){languageRefresh=false;RefreshLanguage(ctx);}
     const auto pageId=Memory::Read32(page+4);if(Memory::Read32(page+8)==4&&!stockLabels.contains(page)){
         if(pageId==0x65){Text(ctx,page+0x2F4,100,T(u"Elige un carné",u"Select a License",u"Choisissez un permis",u"Lizenz auswählen",u"Scegli una patente"));Text(ctx,page+0xDB8,101,PcMenuLocale::Options());stockLabels.insert(page);}
         else if(pageId==0xC0){Text(ctx,page+0x290,102,PcMenuLocale::Options());Text(ctx,page+0x8AC,103,T(u"Canal Mario Kart",u"Mario Kart Channel",u"Chaîne Mario Kart",u"Mario Kart-Kanal",u"Canale Mario Kart"));stockLabels.insert(page);}
     }
     if(std::getenv("MKW_PC_UI_TEST_BRIDGE")){static uint32_t lastTop=0,lastSection=0;const auto section=Section(),layers=Memory::Read32(section+0x37C);if(layers&&layers<=11){const auto top=Memory::Read32(section+0x354+(layers-1)*4);if(top!=lastTop||section!=lastSection){lastTop=top;lastSection=section;RT_LOGF("pc-ui-test","Section %u, top page %u at %08X\n",Memory::Read32(section),Memory::Read32(top+4),top);}}}
-    if(activePage&&closingPc&&Memory::Read32(activePage+8)<=1){for(unsigned i=0;i<5;++i){auto radio=activePage+0x6C4+i*0x298;Memory::Write8(radio+0x80,0);Memory::Write8(radio+0x285,0);Memory::Write32(radio+0x200,originalRadioCounts[i]);auto buttons=Memory::Read32(radio+0x294);for(unsigned j=0;j<originalRadioCounts[i];++j)Memory::Write8(buttons+j*0x17C+0x80,0);}activePage=0;closingPc=false;if(backgroundAdded){backgroundAdded=false;Invoke(ctx,MKW_GADDR(80623288),{Section()});}for(auto [control,hidden]:hiddenOwner)Memory::Write8(control+0x80,hidden);hiddenOwner.clear();if(ownerPage)Invoke(ctx,MKW_GADDR(80602378),{ownerPage});}
+    if(activePage&&closingPc&&Memory::Read32(activePage+8)<=1){for(unsigned i=0;i<5;++i){auto radio=activePage+0x6C4+i*0x298;Memory::Write8(radio+0x80,0);Memory::Write8(radio+0x285,0);Memory::Write32(radio+0x200,originalRadioCounts[i]);auto buttons=Memory::Read32(radio+0x294);for(unsigned j=0;j<originalRadioCounts[i];++j)Memory::Write8(buttons+j*0x17C+0x80,0);}if(sheet==5){const auto external=Memory::Read32(activePage+0x48);if(Memory::Read32(activePage+0x4C))Memory::Write8(Memory::Read32(external)+0x80,0);}activePage=0;closingPc=false;if(backgroundAdded){backgroundAdded=false;Invoke(ctx,MKW_GADDR(80623288),{Section()});}for(auto [control,hidden]:hiddenOwner)Memory::Write8(control+0x80,hidden);hiddenOwner.clear();if(ownerPage)Invoke(ctx,MKW_GADDR(80602378),{ownerPage});}
     if(Memory::Read32(page+4)==0x8B&&Memory::Read32(page+8)==4){const auto status=PcOnlineRooms::Get();if(status.revision!=onlineRevision){Text(ctx,page+0xBC,90,PcOnlineRooms::Summary());onlineRevision=status.revision;}}
 }
 REGISTER_NATIVE_WRAPPER_AS(0x80602338,PcPageUpdate,"PcOriginalUI_PageUpdate");
@@ -237,3 +433,98 @@ extern "C" void PcRememberPaneMessage(CpuContext* ctx){Record(ctx,true);MKW_GUES
 REGISTER_NATIVE_WRAPPER_AS(0x8063DCBC,PcRememberPaneMessage,"PcOriginalUI_RecordPaneMessage");
 extern "C" void PcOnlineActivate(CpuContext* ctx){MKW_GUEST_NEXT(8064BC90)(ctx);PcOnlineRooms::Refresh();onlineRevision=~uint64_t{0};}
 REGISTER_NATIVE_WRAPPER_AS(0x8064BC90,PcOnlineActivate,"PcOriginalUI_OnlineRooms");
+extern "C" void PcOnlineRoomsClick(CpuContext* ctx){
+    const auto page=ctx->gpr[3];
+    if(roomPageActive && page==roomPage){
+        const auto button=ctx->gpr[4];const auto it=std::find_if(roomButtonStates.begin(),roomButtonStates.end(),[button](const auto& item){return item.address==button;});
+        if(it!=roomButtonStates.end()){
+            const auto slot=static_cast<size_t>(it-roomButtonStates.begin());
+            if(roomPageHasNext && slot==roomPageCapacity){NextRoomPage(ctx);return;}
+            const auto index=roomPageOffset+slot;const auto snapshot=PcOnlineRooms::Get();
+            if(!std::getenv("MKW_PC_ROOM_UNAVAILABLE_TEST") && index<roomIds.size() && snapshot.available && std::any_of(snapshot.rooms.begin(),snapshot.rooms.end(),[&](const auto& room){return room.id==roomIds[index]&&room.publicJoinable;})){
+                pendingRoomId=roomIds[index];for(const auto& room:snapshot.rooms)if(room.id==pendingRoomId){pendingRoomKey=room.roomKey;probeKnownPeers=room.memberPids;break;}
+                if(!textScratch || !PcOnlineRooms::RouteForRoomMode(pendingRoomKey)){
+                    pendingRoomId.clear();pendingRoomKey.clear();probeKnownPeers.clear();
+                    roomNoticeRefreshing=false;roomNotice=T(u"Este modo aun no esta disponible.",u"This mode is not available yet.",u"Ce mode n'est pas encore disponible.",u"Dieser Modus ist noch nicht verfügbar.",u"Questa modalità non è ancora disponibile.");
+                    RT_LOGF("pc-ui-test","Selected room has no verified native route\n");return;
+                }
+                roomRouteStage=1;roomRouteFrames=0;
+                RT_LOGF("pc-ui-test","Public room selected in native page\n");Invoke(ctx,MKW_GADDR(80837B4C),{page,button});
+            }else {roomNoticeRefreshing=true;roomNotice=T(u"Sala no disponible. Actualizando...",u"Room unavailable. Refreshing...",u"Salle indisponible. Actualisation...",u"Raum nicht verfügbar. Aktualisierung...",u"Stanza non disponibile. Aggiornamento...");PcOnlineRooms::Refresh();RT_LOGF("pc-ui-test","Selected room became unavailable\n");}
+        }return;
+    }
+    if(extraButtons.contains(page) && extraButtons.at(page).button==ctx->gpr[4]){
+        const auto source=extraButtons.at(page).source;const auto holder=Memory::Read32(source+0x234),handler=Memory::Read32(holder+16);
+        if(handler){roomPageRequested=true;PcOnlineRooms::Refresh();Invoke(ctx,handler,{page,source,ctx->gpr[5]});}
+        return;
+    }
+    MKW_GUEST_NEXT(8064BCE8)(ctx);
+}
+REGISTER_NATIVE_WRAPPER_AS(0x8064BCE8,PcOnlineRoomsClick,"PcOriginalUI_RoomButtonProbe");
+// Preserve the game's original matchmaking constraints and narrow them only
+// while the player is joining a particular public room.
+extern "C" void PcMatchFilterProbe(CpuContext* ctx){
+    if(std::getenv("MKW_PC_UI_TEST_BRIDGE") || !pendingRoomId.empty()){
+        const auto address=ctx->gpr[8];std::string filter;
+        for(unsigned i=0;i<255 && address && Memory::Contains(address+i);++i){
+            const auto c=Memory::Read8(address+i);if(!c)break;
+            filter.push_back(static_cast<char>(c));
+        }
+        if(std::getenv("MKW_PC_UI_TEST_BRIDGE")){auto redacted=filter;for(auto& c:redacted)if(c>='0'&&c<='9')c='#';RT_LOGF("pc-ui-test","Match filter: %s\n",redacted.c_str());}
+        if(textScratch && !pendingRoomId.empty()){
+            bool applied=false;
+            const auto snapshot=PcOnlineRooms::Get();
+            if(snapshot.available)for(const auto& room:snapshot.rooms){
+                if(!room.publicJoinable || (!probeChosenRoomId.empty() && room.id!=probeChosenRoomId) || (!pendingRoomId.empty() && room.id!=pendingRoomId))continue;
+                std::array<uint32_t,1> impossible{};
+                std::span<const uint32_t> targets=room.memberPids;
+                if(std::getenv("MKW_PC_UI_TEST_BRIDGE") && std::getenv("MKW_PC_ROOM_PROBE_NO_MATCH")){
+                    const auto start=filter.find("dwc_pid != ");
+                    if(start!=std::string::npos){const auto begin=filter.data()+start+11;std::from_chars(begin,filter.data()+filter.size(),impossible[0]);}
+                    targets=impossible;
+                }
+                const auto narrowed=PcOnlineRooms::NarrowMatchFilterBatch(filter,room.roomKey,targets,probeMemberOffset);
+                if(!narrowed)continue;
+                probeChosenRoomId=room.id;probeKnownPeers=room.memberPids;probeMemberOffset=narrowed->nextOffset;roomSearchStarted=true;
+                const auto scratch=textScratch+3072;
+                for(size_t i=0;i<narrowed->expression.size();++i)Memory::Write8(scratch+i,static_cast<uint8_t>(narrowed->expression[i]));
+                Memory::Write8(scratch+narrowed->expression.size(),0);ctx->gpr[8]=scratch;
+                applied=true;RT_LOGF("pc-ui-test","Selected public room filter applied to compatible search\n");break;
+            }
+            // If a selected room is stale, full or for a different mode, do
+            // not let the diagnostic silently search unrelated rooms.
+            if(!applied && !pendingRoomId.empty() && filter.find("dwc_mver = ")!=std::string::npos){
+                const auto blocked=PcOnlineRooms::BlockUnrelatedMatches(filter);
+                if(blocked){const auto scratch=textScratch+3072;for(size_t i=0;i<blocked->size();++i)Memory::Write8(scratch+i,static_cast<uint8_t>((*blocked)[i]));Memory::Write8(scratch+blocked->size(),0);ctx->gpr[8]=scratch;roomSearchStarted=true;RT_LOGF("pc-ui-test","Selected room unavailable or wrong mode; unrelated matches blocked\n");}
+                else {RT_LOGF("pc-ui-test","Selected room filter could not be safely constrained\n");ctx->gpr[3]=6;return;}
+            }
+        }
+    }
+    MKW_GUEST_NEXT(8011E2A0)(ctx);
+}
+REGISTER_NATIVE_WRAPPER_AS(0x8011E2A0,PcMatchFilterProbe,"PcOriginalUI_MatchFilterProbe");
+extern "C" void PcServerSetupProbe(CpuContext* ctx){
+    if(std::getenv("MKW_PC_UI_TEST_BRIDGE") && std::getenv("MKW_PC_ROOM_PROBE"))
+        RT_LOGF("pc-ui-test","Game requested server setup during room probe\n");
+    MKW_GUEST_NEXT(800D1984)(ctx);
+}
+REGISTER_NATIVE_WRAPPER_AS(0x800D1984,PcServerSetupProbe,"PcOriginalUI_ServerSetupProbe");
+extern "C" void PcIncomingReservationProbe(CpuContext* ctx){
+    if(!pendingRoomId.empty() && ctx->gpr[3]==1){
+        const auto peer=ctx->gpr[4];const auto snapshot=PcOnlineRooms::Get();bool member=false,known=false;
+        const auto match=Memory::Read32(0x8038630Cu);const auto server=match&&Memory::Contains(match+0x638,4)?Memory::Read32(match+0x638):0;
+        const bool connected=match&&Memory::Contains(match+0xE)&&Memory::Read8(match+0xE)>0;
+        for(const auto& room:snapshot.rooms)if(room.id==pendingRoomId){known=true;member=std::find(room.memberPids.begin(),room.memberPids.end(),peer)!=room.memberPids.end();}
+        if(PcOnlineRooms::IsConnectedToSelectedRoom(connected,server,probeKnownPeers))probeJoinedTarget=true;
+        RT_LOGF("pc-ui-test","Incoming reservation while choosing room: %s\n",member?"listed member":"other or unknown");
+        if(!probeJoinedTarget && !member && textScratch){
+            // DWC normally replies to a refused reservation with a one-word
+            // reason. Keep the remote peer on the ordinary denial path.
+            Memory::Write32(textScratch+3328,0x12000000u);
+            Invoke(ctx,MKW_GADDR(800DBD38),{3,peer,ctx->gpr[5],ctx->gpr[6],textScratch+3328,1});
+            RT_LOGF("pc-ui-test","Rejected unrelated incoming reservation during directed search%s\n",known?"":" (room status unavailable)");return;
+        }
+    }
+    MKW_GUEST_NEXT(800DC234)(ctx);
+}
+REGISTER_NATIVE_WRAPPER_AS(0x800DC234,PcIncomingReservationProbe,"PcOriginalUI_IncomingReservationProbe");

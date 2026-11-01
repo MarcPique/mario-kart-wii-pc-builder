@@ -4,6 +4,7 @@ import json,shutil,zipfile,hashlib,sys
 ROOT=Path(__file__).resolve().parent;REPO=ROOT.parent
 def prepare(destination):
     destination=Path(destination);destination.mkdir(parents=True,exist_ok=True)
+    if any(destination.iterdir()):raise ValueError('La carpeta temporal del paquete debe estar vacía')
     shutil.copytree(ROOT/'worker',destination/'worker',dirs_exist_ok=True,ignore=shutil.ignore_patterns('__pycache__','*.pyc'))
     for relative in json.loads((ROOT/'source-changes.json').read_text()):
         if relative.endswith('pc_options_menu.inl'):continue

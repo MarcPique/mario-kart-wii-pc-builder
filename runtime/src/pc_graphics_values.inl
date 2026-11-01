@@ -2,8 +2,8 @@
 static int g_pcPreset=RuntimeConfigFile::Get().qualityPreset.value_or(5);
 static uint32_t g_pcMsaa=RuntimeConfigFile::Get().msaaSamples.value_or(1);
 static uint32_t g_pcAnisotropy=RuntimeConfigFile::Get().anisotropy.value_or(1);
-static void PcSetMsaa(uint32_t value){g_pcMsaa=value;RuntimeConfigFile::Mutable().msaaSamples=value;RuntimeConfigFile::WriteSetting("video","msaa_samples",std::to_string(value));}
-static void PcSetAnisotropy(uint32_t value){g_pcAnisotropy=value;RuntimeConfigFile::Mutable().anisotropy=value;RuntimeConfigFile::WriteSetting("video","anisotropy",std::to_string(value));}
+static void PcSetMsaa(uint32_t value){aurora_pc_set_msaa(value);g_pcMsaa=value;RuntimeConfigFile::Mutable().msaaSamples=value;RuntimeConfigFile::WriteSetting("video","msaa_samples",std::to_string(value));}
+static void PcSetAnisotropy(uint32_t value){aurora_pc_set_anisotropy(static_cast<uint16_t>(value));g_pcAnisotropy=value;RuntimeConfigFile::Mutable().anisotropy=value;RuntimeConfigFile::WriteSetting("video","anisotropy",std::to_string(value));}
 static void PcMarkCustom(){g_pcPreset=5;RuntimeConfigFile::Mutable().qualityPreset=5;RuntimeConfigFile::WriteSetting("video","quality_preset","5");}
 static void PcApplyPreset(int preset){
     GX_SYNC_INLINE();

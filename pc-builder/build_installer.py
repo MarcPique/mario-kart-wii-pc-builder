@@ -1,6 +1,6 @@
 """Build the public installer. Python 3 + .NET SDK 10 are maintainer-only tools."""
 from pathlib import Path
-import hashlib,json,os,shutil,subprocess,sys,zipfile
+import hashlib,json,os,shutil,subprocess,sys,tempfile,zipfile
 ROOT=Path(__file__).resolve().parent
 sys.path.insert(0,str(ROOT/'worker'))
 from icon_from_disc import png
@@ -28,10 +28,14 @@ def icon():
 def main():
     cache=ROOT/'.cache';build=ROOT/'.build';out=ROOT/'dist';build.mkdir(exist_ok=True);out.mkdir(exist_ok=True)
     pins=json.loads((ROOT/'worker/pins.json').read_text());python_zip=download(pins['python'],cache)
-    payload=build/'payload';prepare(payload);archive=build/'BuilderPayload.zip'
-    with zipfile.ZipFile(archive,'w',zipfile.ZIP_DEFLATED,compresslevel=9) as z:
-        for p in sorted(payload.rglob('*')):
-            if p.is_file():z.write(p,p.relative_to(payload).as_posix())
+    archive=build/'BuilderPayload.zip'
+    # A fresh owned directory prevents old or unrelated files from a previous
+    # build silently entering a new public installer.
+    with tempfile.TemporaryDirectory(prefix='payload-',dir=build) as temporary:
+        payload=Path(temporary);prepare(payload)
+        with zipfile.ZipFile(archive,'w',zipfile.ZIP_DEFLATED,compresslevel=9) as z:
+            for p in sorted(payload.rglob('*')):
+                if p.is_file():z.write(p,p.relative_to(payload).as_posix())
     icon()
     subprocess.run(['dotnet','publish',str(ROOT/'Installer/Installer.csproj'),'-c','Release','-o',str(out),f'-p:PayloadZip={archive}',f'-p:PythonZip={python_zip}'],check=True)
     exe=out/'MKWii-PC-Builder.exe';digest=hashlib.sha256(exe.read_bytes()).hexdigest();(out/'SHA256SUMS.txt').write_text(f'{digest}  {exe.name}\n')

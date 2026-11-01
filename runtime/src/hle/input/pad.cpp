@@ -3,6 +3,7 @@
 #include "hle/controller_status_contract.h"
 #include "input_bindings.h"
 #include "runtime_config.h"
+#include "runtime_log.h"
 #include <fstream>
 
 #include <algorithm>
@@ -128,6 +129,16 @@ extern "C" uint32_t PAD__Read_HLE(uint32_t statusPtr)
 
     FillTriggersHeldByButtons(statuses);
     InputBindings::Apply(statuses);
+    if (testBridge) {
+        static uint16_t previous[PAD_CHANMAX]{};
+        for (uint32_t port=0; port<PAD_CHANMAX; ++port) {
+            const uint16_t pressed=statuses[port].err==PAD_ERR_NONE ? statuses[port].button : 0;
+            if (pressed!=previous[port]) {
+                RT_LOGF("pc-ui-test", "PAD port %u buttons %04x\n", port+1, pressed);
+                previous[port]=pressed;
+            }
+        }
+    }
 
     try {
         for (uint32_t i = 0; i < PAD_CHANMAX; ++i) {

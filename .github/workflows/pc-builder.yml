@@ -17,6 +17,12 @@ jobs:
       - run: python -m unittest discover -s pc-builder/tests -v
       - name: Room response parser
         run: g++ -std=c++20 -O2 -Iruntime/include pc-builder/tests/room_parser_test.cpp -o /tmp/room-parser && /tmp/room-parser
+      - name: Matchmaking filter
+        run: g++ -std=c++20 -O2 -Iruntime/include pc-builder/tests/match_filter_test.cpp -o /tmp/match-filter && /tmp/match-filter
+      - name: Fresh Retro Rewind settings
+        run: g++ -std=c++20 -O2 -Iruntime/include runtime/tests/pc_retro_defaults_tests.cpp -o /tmp/retro-defaults && /tmp/retro-defaults
+      - name: Retro Rewind update manifest
+        run: g++ -std=c++20 -O2 -Iruntime/include runtime/tests/pc_rr_update_manifest_tests.cpp -o /tmp/retro-updates && /tmp/retro-updates
   windows-installer:
     runs-on: windows-latest
     steps:
@@ -33,6 +39,7 @@ jobs:
         run: |
           import subprocess
           subprocess.run(['pc-builder/dist/MKWii-PC-Builder.exe', '--self-test'], check=True)
+          subprocess.run(['pc-builder/dist/MKWii-PC-Builder.exe', '--test-progress-parser'], check=True)
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           name: MKWii-PC-Builder-Windows

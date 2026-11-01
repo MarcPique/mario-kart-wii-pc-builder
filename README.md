@@ -31,6 +31,10 @@ Este builder genera una instalación nativa para Windows a partir de **tu propio
 
 El icono completo se obtiene **localmente del banner de tu disco**. La integración usa Retro Rewind **6.13.4**, incluido su contenido adicional y sus cambios de jugabilidad.
 
+### Cambios en desarrollo
+
+La copia de desarrollo añade una página nativa **Mandos** para asignar dispositivos a cuatro jugadores, consulta de versiones de Retro Rewind y «Todas las pistas» por defecto en ajustes recién creados. El DualSense Edge se ha probado por Bluetooth; otros modelos y la conexión simultánea de varios mandos físicos necesitan más pruebas. También incluye un selector de salas públicas en el menú online: se ha verificado la entrada a salas Retro y CT, pero otros modos y cambios de anfitrión aún necesitan pruebas. La última release publicada puede no incluir todavía estos cambios.
+
 ## Instalación
 
 1. Descarga **[MKWii-PC-Builder.exe](https://github.com/MarcPique/mario-kart-wii-pc-builder/releases/latest/download/MKWii-PC-Builder.exe)** desde Releases.
@@ -64,11 +68,13 @@ En la selección de carné, entra en **Opciones → Opciones avanzadas**. En una
 
 Puedes cambiar resolución interna y de ventana, modo de pantalla, formato, V-Sync, FPS, bloom, MSAA 4x, anisotropía, nitidez, interpolación, vibración y silencio. Presets: **Original Wii, Bajo, Medio, Alto y Ultra**.
 
-**El idioma cambia al instante**, incluidos los textos de menús ya abiertos y el nombre del botón. AA y anisotropía se guardan para el siguiente arranque; bloom se aplica al cargar una escena. Las demás opciones se aplican en vivo cuando lo permite el renderizador.
+**El idioma cambia al instante**, incluidos los textos de menús ya abiertos y el nombre del botón. En la versión de desarrollo, AA y anisotropía también se aplican sin reiniciar; se han probado en una GPU y falta verificar otras. Bloom se aplica al cargar una escena. Las demás opciones se aplican en vivo cuando lo permite el renderizador.
 
 ## Online habilitado
 
 El online viene habilitado mediante **Retro WFC**, con la integración de Retro Rewind 6.13.4. Entra en **Retro WFC** desde el menú del juego. Login, amigos y salas utilizan sus menús nativos en el mismo proceso. Se han probado el login y la creación y cierre de una sala de amigos. La disponibilidad y las normas dependen de [Retro WFC](https://rwfc.net/).
+
+El contador muestra el estado de las salas; la versión de desarrollo también ofrece el botón **Salas** para elegir una sala pública compatible. La versión publicada puede carecer de este selector. El juego dispone de emparejamiento mundial y salas de amigos. Los circuitos personalizados pueden habilitarse en **Un jugador → Ajustes → Carrera → Selección de pistas → Todas las pistas**. Las variantes de personaje se cambian con L/R en la pantalla de personajes.
 
 ## Archivos y partidas
 

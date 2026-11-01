@@ -52,6 +52,8 @@
 #include <dolphin/pad.h>
 
 extern "C" void PAD_HLE_SetRumbleEnabled(bool enabled);
+extern "C" void aurora_pc_set_anisotropy(uint16_t value) noexcept;
+extern "C" void aurora_pc_set_msaa(uint32_t value) noexcept;
 #include <dolphin/vi.h>
 #include <aurora/aurora.h>
 #include <aurora/gfx.h>
@@ -1532,6 +1534,60 @@ bool StartupScreenVisible() noexcept {
     return !g_strapInputAccepted.load(std::memory_order_acquire) ||
            !g_bootShadersReady.load(std::memory_order_acquire) ||
            g_presentedFrame < g_startupDismissFrame.load(std::memory_order_relaxed);
+}
+
+std::vector<std::u16string> PcControllerDevices() {
+    std::vector<std::u16string> devices{PcMenuLocale::T(u"Teclado",u"Keyboard",u"Clavier",u"Tastatur",u"Tastiera")};
+    for (uint32_t i = 0; i < PADCount(); ++i) {
+        const char* name = PADGetNameForControllerIndex(i);
+        std::u16string label;
+        // SDL names are UTF-8. Keep ASCII device names legible even when a
+        // device reports characters missing from the game's font.
+        const std::string_view fullName = name ? name : "";
+        if (fullName.find("DualSense Edge") != std::string_view::npos) label = u"DS Edge";
+        else if (fullName.find("DualSense") != std::string_view::npos) label = u"DualSense";
+        else if (fullName.find("DualShock") != std::string_view::npos || fullName.find("PS4") != std::string_view::npos) label = u"DualShock";
+        else if (fullName.find("Nintendo Switch") != std::string_view::npos || fullName.find("Switch Pro") != std::string_view::npos) label = u"Switch Pro";
+        else if (fullName.find("Xbox") != std::string_view::npos) label = u"Xbox";
+        else if (name) for (const unsigned char* p = reinterpret_cast<const unsigned char*>(name); *p && label.size() < 9; ++p)
+            if (*p >= 32 && *p < 127) label.push_back(static_cast<char16_t>(*p));
+        if (label.empty()) label = PcMenuLocale::T(u"Mando",u"Controller",u"Manette",u"Controller",u"Controller");
+        const auto number = std::to_string(i + 1);
+        label += u" "; label.append(number.begin(), number.end());
+        devices.push_back(std::move(label));
+    }
+    return devices;
+}
+
+std::u16string PcControllerPlayerName(unsigned port) {
+    auto result = PcMenuLocale::T(u"Jugador",u"Player",u"Joueur",u"Spieler",u"Giocatore");
+    result += u" "; result.push_back(static_cast<char16_t>(u'1' + port)); result += u": ";
+    if (KeyboardActive(port)) return result + PcControllerDevices()[0];
+    const auto index = PADGetIndexForPort(port);
+    const auto devices = PcControllerDevices();
+    if (index >= 0 && static_cast<size_t>(index + 1) < devices.size()) return result + devices[index + 1];
+    return result + PcMenuLocale::T(u"Ninguno",u"None",u"Aucun",u"Keiner",u"Nessuno");
+}
+
+bool PcControllerSelected(unsigned port, unsigned device) {
+    if (port >= PAD_MAX_CONTROLLERS) return false;
+    return device == 0 ? KeyboardActive(port) : !KeyboardActive(port) && PADGetIndexForPort(port) == static_cast<int32_t>(device - 1);
+}
+
+void PcControllerAssign(unsigned port, unsigned device, bool assign) {
+    if (port >= PAD_MAX_CONTROLLERS || device > PADCount()) return;
+    if (!assign) {
+        SetKeyboardActive(port, false);
+        PADClearPort(port);
+    } else if (device == 0) {
+        PADClearPort(port);
+        SetKeyboardActive(port, true);
+    } else {
+        SetKeyboardActive(port, false);
+        PADSetPortForIndex(device - 1, port);
+        g_configuredControllerIndices.fill(std::numeric_limits<int32_t>::min());
+        ApplyConfiguredMappings();
+    }
 }
 
 unsigned PcGraphicsValue(unsigned sheet,unsigned row) {

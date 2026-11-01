@@ -55,6 +55,18 @@ internal sealed class RuntimeFiles : IDisposable
 }
 
 internal sealed record BuildOptions(string Iso, string Destination, string? Desktop, string? Cache = null, string Language = "es", int Jobs = 4, bool Offline = false);
+internal static class ProgressProtocol
+{
+    public static bool TryGetStage(JsonElement root, out string? stage)
+    {
+        stage = null;
+        if (root.ValueKind != JsonValueKind.Object ||
+            !root.TryGetProperty("stage", out var property) || property.ValueKind != JsonValueKind.String)
+            return false;
+        stage = property.GetString();
+        return true;
+    }
+}
 internal sealed class BuildRunner : IDisposable
 {
     private Process? process;
@@ -83,6 +95,16 @@ internal static class Program
     {
         try
         {
+            if (args.Contains("--test-progress-parser"))
+            {
+                foreach (var sample in new[] { "{\"bytes\":783448,\"ids\":2998,\"languages\":[]}", "[]", "42", "{\"stage\":null}" })
+                {
+                    using var ignored = JsonDocument.Parse(sample);
+                    if (ProgressProtocol.TryGetStage(ignored.RootElement, out _)) return 1;
+                }
+                using var valid = JsonDocument.Parse("{\"stage\":\"complete\"}");
+                return ProgressProtocol.TryGetStage(valid.RootElement, out var stage) && stage == "complete" ? 0 : 1;
+            }
             if (args.Contains("--version")) { Console.WriteLine("1.0.0"); return 0; }
             if (Array.IndexOf(args, "--render-preview") is var preview && preview >= 0 && preview + 1 < args.Length)
             {
@@ -185,7 +207,9 @@ internal sealed class BuilderForm : Form
             try
             {
                 using var doc = JsonDocument.Parse(line); var root = doc.RootElement;
-                var stage = root.GetProperty("stage").GetString();
+                // The worker also prints diagnostics as JSON, including the locale
+                // bank summary. Only protocol objects carry a string stage.
+                if (!ProgressProtocol.TryGetStage(root, out var stage)) return;
                 if (root.TryGetProperty("percent", out var p)) { progress.Style = ProgressBarStyle.Continuous; progress.Value = Math.Clamp(p.GetInt32(), 0, 100); status.Text = root.GetProperty("message").GetString(); }
                 else if (stage == "download") status.Text = root.GetProperty("message").GetString();
                 else if (stage is "compile" or "translate-base" or "translate-retro" or "configure" or "shards") { progress.Style = ProgressBarStyle.Marquee; status.Text = stage == "compile" ? "Compilando el juego para Windows. Puede tardar varios minutos…" : "Preparando y traduciendo localmente tu juego…"; }

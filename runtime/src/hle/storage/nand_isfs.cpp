@@ -6,6 +6,8 @@
 
 #include "discord_presence.h"
 #include "runtime_log.h"
+#include "pc_retro_defaults.h"
+#include <atomic>
 
 extern "C" void OSSleepThread_HLE_801aa9b8(CpuContext* ctx);
 
@@ -26,6 +28,10 @@ struct ShaHandle {
 static std::map<int32_t, ShaHandle> g_shaHandles;
 static int32_t g_nextShaFd = 0x10001;
 static std::mutex g_shaMutex;
+// Armed only when this process creates an absent Retro Rewind settings file.
+// Existing settings and every other NAND file are left untouched.
+static std::atomic_bool g_freshRetroSettings{false};
+static constexpr const char* kRetroSettingsPath = "/shared2/Pulsar/RetroRewind6/RRGameSettings.pul";
 
 static int32_t AllocateShaFd() {
     std::lock_guard<std::mutex> lock(g_shaMutex);
@@ -505,12 +511,19 @@ extern "C" int32_t NAND_IOS_Write_HLE(uint32_t fd, uint32_t bufferPtr, uint32_t 
         return 0;
     }
     
-    const uint8_t* buffer = (const uint8_t*)Memory::GetPointer(bufferPtr);
+    uint8_t* buffer = (uint8_t*)Memory::GetPointer(bufferPtr);
     if (!buffer) {
         LogNandError("IOS_Write", "invalid buffer ptr 0x%08X", bufferPtr);
         return ISFS_EINVAL;
     }
     
+    if (g_freshRetroSettings && handle->position==0 && RuntimeProduct::IsRetroRewind() &&
+        handle->path.filename()=="RRGameSettings.pul") {
+        if (PcRetroDefaults::EnableAllTracks(buffer,length)) {
+            g_freshRetroSettings=false;
+            RT_LOGF("pc-retro", "Enabled all track categories for new Retro Rewind settings\n");
+        }
+    }
     size_t bytesWritten = std::fwrite(buffer, 1, length, handle->file);
     std::fflush(handle->file);
     handle->position += static_cast<uint32_t>(bytesWritten);
@@ -647,12 +660,15 @@ extern "C" int32_t NAND_IOS_Ioctl_HLE(
                 }
                 const char* path = (const char*)Memory::GetPointer(inBufPtr + 6);
                 const std::filesystem::path hostPath = TranslateNandPath(path);
+                const bool freshRetro = RuntimeProduct::IsRetroRewind() &&
+                    std::strcmp(path,kRetroSettingsPath)==0 && !PathExists(hostPath);
                 CreateParentDirectories(hostPath);
 
                 // Create empty file
                 FILE* f = NandFopen(hostPath, "wb");
                 if (f) {
                     std::fclose(f);
+                    if (freshRetro) g_freshRetroSettings=true;
                     return ISFS_OK;
                 }
                 return ISFS_EIO;
