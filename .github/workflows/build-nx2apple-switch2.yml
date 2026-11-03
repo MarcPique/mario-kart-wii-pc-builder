@@ -1,0 +1,36 @@
+name: Build NX2Apple Switch 2 for macOS
+
+on:
+  push:
+    branches: [automation/nx2apple-switch2-macos]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build-macos:
+    runs-on: xcode-27
+    timeout-minutes: 180
+    steps:
+      - uses: actions/checkout@v4
+      - name: Fetch original NX2Apple
+        run: git clone --depth 1 https://github.com/LNPANDY/NX2Apple.git NX2Apple
+      - name: Add Switch 2 interface
+        run: |
+          cp nx2apple-ci/BuildPage.swift NX2Apple/frontend/Sources/NX2Apple/BuildPage.swift
+          cp nx2apple-ci/Switch2MacBuildView.swift NX2Apple/frontend/Sources/NX2Apple/Switch2MacBuildView.swift
+      - name: Build SwiftUI
+        working-directory: NX2Apple/frontend
+        run: swift build -c release
+      - name: Package Mac application
+        working-directory: NX2Apple
+        run: |
+          tools/try-local --no-open --dir "$RUNNER_TEMP/nx2apple-output"
+          ditto -c -k --sequesterRsrc --keepParent "$RUNNER_TEMP/nx2apple-output/NX2Apple.app" "$GITHUB_WORKSPACE/NX2Apple-Switch2-macOS-arm64.zip"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: NX2Apple-Switch2-macOS-arm64
+          path: NX2Apple-Switch2-macOS-arm64.zip
+          if-no-files-found: error
+          retention-days: 14
