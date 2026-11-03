@@ -20,6 +20,9 @@ jobs:
         run: |
           cp nx2apple-ci/BuildPage.swift NX2Apple/frontend/Sources/NX2Apple/BuildPage.swift
           cp nx2apple-ci/Switch2MacBuildView.swift NX2Apple/frontend/Sources/NX2Apple/Switch2MacBuildView.swift
+      - name: Check Swift closure captures
+        run: |
+          python3 -c "from pathlib import Path; p=Path('NX2Apple/frontend/Sources/NX2Apple/Switch2MacBuildView.swift'); s=p.read_text(); s=s.replace('DispatchQueue.main.async {', 'DispatchQueue.main.async { [self] in').replace('DispatchQueue.global(qos: .userInitiated).async {', 'DispatchQueue.global(qos: .userInitiated).async { [self] in'); p.write_text(s)"
       - name: Build SwiftUI
         working-directory: NX2Apple/frontend
         run: swift build -c release
