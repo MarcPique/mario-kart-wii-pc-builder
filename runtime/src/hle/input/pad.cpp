@@ -4,6 +4,7 @@
 #include "input_bindings.h"
 #include "runtime_config.h"
 #include "runtime_log.h"
+#include "pc_local_input.h"
 #include <fstream>
 
 #include <algorithm>
@@ -115,20 +116,48 @@ extern "C" uint32_t PAD__Read_HLE(uint32_t statusPtr)
     }
 
     PADStatus statuses[PAD_CHANMAX]{};
-    uint32_t rumbleMask = PADRead(statuses);
+    uint32_t rumbleMask = 0;
+    const bool follower=PcLocalInput::Follower();
+    if(!follower)rumbleMask=PADRead(statuses);
 
     // Deterministic local test bridge; dormant in normal launches. It exercises
     // the real PAD/menu path without desktop input timing affecting the tests.
     static const bool testBridge=std::getenv("MKW_PC_UI_TEST_BRIDGE")!=nullptr;
-    static unsigned testFrames=0,testButtons=0;
-    if(testBridge){
+    static unsigned testFrames=0,testButtons=0,testPort=0;
+    if(testBridge&&!follower){
         const auto file=RuntimeConfigFile::ApplicationDataDirectory()/"pc-test-input.txt";
-        if(std::ifstream input{file};input){unsigned mask=0,frames=0;if(input>>std::hex>>mask>>std::dec>>frames){testButtons=mask&0x1F7F;testFrames=std::clamp(frames,2u,60u);}input.close();std::error_code ec;std::filesystem::remove(file,ec);}
-        if(testFrames){--testFrames;statuses[0].err=PAD_ERR_NONE;statuses[0].button|=static_cast<uint16_t>(testButtons);}
+        if(std::ifstream input{file};input){unsigned mask=0,frames=0,port=0;if(input>>std::hex>>mask>>std::dec>>frames){input>>port;if(port<PAD_CHANMAX){testButtons=mask&0x1F7F;testFrames=std::clamp(frames,2u,60u);testPort=port;}}input.close();std::error_code ec;std::filesystem::remove(file,ec);}
+        if(testFrames){--testFrames;statuses[testPort].err=PAD_ERR_NONE;statuses[testPort].button|=static_cast<uint16_t>(testButtons);}
     }
 
-    FillTriggersHeldByButtons(statuses);
-    InputBindings::Apply(statuses);
+    if(follower){
+        const auto pads=InputBindings::InputBlocked()?PcLocalInput::Disconnected():PcLocalInput::Receive();
+        for(unsigned port=0;port<PAD_CHANMAX;++port){
+            const auto& p=pads[port];auto& status=statuses[port];
+            status.button=BigEndian::Read16(p.data());
+            status.stickX=static_cast<int8_t>(p[2]);status.stickY=static_cast<int8_t>(p[3]);
+            status.substickX=static_cast<int8_t>(p[4]);status.substickY=static_cast<int8_t>(p[5]);
+            status.triggerL=p[6];status.triggerR=p[7];status.analogA=p[8];status.analogB=p[9];status.err=static_cast<int8_t>(p[10]);
+            if(status.err==PAD_ERR_NONE)rumbleMask|=PAD_CHAN0_BIT>>port;
+        }
+    }else{
+        FillTriggersHeldByButtons(statuses);
+        InputBindings::Apply(statuses);
+        PcLocalInput::Pads pads;
+        for(unsigned port=0;port<PAD_CHANMAX;++port){const auto& s=statuses[port];pads[port]=PadStatusContract::Encode({s.button,s.stickX,s.stickY,s.substickX,s.substickY,s.triggerL,s.triggerR,s.analogA,s.analogB,s.err});}
+        const auto feedback=PcLocalInput::Publish(pads);
+        if(PcLocalInput::Host()){
+            // Only this process reads physical devices. Its last two players
+            // belong exclusively to the second compatible two-player client.
+            static std::array<uint32_t,2> previousMotors{UINT32_MAX,UINT32_MAX};
+            for(unsigned port=2;port<PAD_CHANMAX;++port){
+                statuses[port]={};statuses[port].err=PAD_ERR_NO_CONTROLLER;
+                const auto command=g_rumbleEnabled.load()?feedback.motors[port-2]:PAD_MOTOR_STOP;
+                if(command!=previousMotors[port-2]){PADControlMotor(port,command);previousMotors[port-2]=command;}
+            }
+            rumbleMask&=PAD_CHAN0_BIT|PAD_CHAN1_BIT;
+        }
+    }
     if (testBridge) {
         static uint16_t previous[PAD_CHANMAX]{};
         for (uint32_t port=0; port<PAD_CHANMAX; ++port) {
@@ -170,6 +199,8 @@ extern "C" void PAD__ControlMotor_HLE(int32_t chan, uint32_t command)
     if (command == PAD_MOTOR_RUMBLE && !g_rumbleEnabled.load(std::memory_order_relaxed)) {
         command = PAD_MOTOR_STOP;
     }
-    PADControlMotor(chan, command);
+    if(PcLocalInput::Host()&&chan>=2)return; // the second client owns these motors
+    if(PcLocalInput::Follower()){if(chan>=0)PcLocalInput::Motor(static_cast<unsigned>(chan),command);}
+    else PADControlMotor(chan, command);
 }
 PPC_NATIVE_OVERRIDE_VOID(801AF908, PAD__ControlMotor_HLE, (int32_t chan, uint32_t command), (chan, command));

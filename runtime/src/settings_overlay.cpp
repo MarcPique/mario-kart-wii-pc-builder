@@ -14,6 +14,7 @@ extern "C" void DVDMyStuffStop();
 #include "audio_backend.h"
 #include "aurora_events.h"
 #include "controller_button_names.h"
+#include "pc_local_input.h"
 #include "controller_mapping_wizard.h"
 #include "input_bindings.h"
 #include "game_graphics_options.h"
@@ -25,6 +26,7 @@ extern "C" void DVDMyStuffStop();
 #include <imgui.h>
 #include <SDL3/SDL_events.h>
 #include <SDL3/SDL_gamepad.h>
+#include <SDL3/SDL_hints.h>
 #include <SDL3/SDL_keyboard.h>
 #include <SDL3/SDL_mouse.h>
 #include <SDL3/SDL_scancode.h>
@@ -1440,6 +1442,11 @@ void ApplyInputBlockState() {
 
 void InitializeRuntimeSettings(bool showWindowWhenReady) noexcept {
     g_showWindowWhenReady = showWindowWhenReady;
+    PcLocalInput::Initialize();
+    if(PcLocalInput::Host()||PcLocalInput::Follower()){
+        aurora_set_background_input(true);
+        aurora_set_pause_on_focus_lost(false);
+    }
     PADInit();
     // A fresh portable install needs usable input before reaching Options.
     if (!std::filesystem::exists(RuntimeConfigFile::ApplicationDataDirectory()/"keyboard_bindings.dat"))
@@ -1523,6 +1530,7 @@ void HandleEvents(const AuroraEvent* events) noexcept {
 }
 
 void ReleaseControllers() noexcept {
+    PcLocalInput::Stop();
     DVDMyStuffStop();
     PcOnlineRooms::Stop();
     // Aurora drives the LED white on first PADRead and never clears it, and the

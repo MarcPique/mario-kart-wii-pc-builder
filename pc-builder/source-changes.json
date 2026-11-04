@@ -41,5 +41,7 @@
   "runtime/src/pc_texture_archive.cpp",
   "runtime/src/hle/storage/nand_fs.cpp",
   "runtime/include/pc_session_profile.h",
-  "runtime/include/pc_my_stuff_cache.h"
+  "runtime/include/pc_my_stuff_cache.h",
+  "runtime/include/pc_local_input.h",
+  "runtime/src/pc_local_input.cpp"
 ]

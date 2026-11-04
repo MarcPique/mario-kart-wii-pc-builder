@@ -12,7 +12,7 @@ Rewind 6.13.4 and the user's PAL RMCP01 disc.
 | My Stuff | Native page with the five original choices, Apply and Folder; settings persist. Portable user content takes priority over the legacy SD-style folders. Preparation runs in the background and publishes on the game thread. Leaving these options cancels it. | Real DVD tests passed mode changes, stable entry IDs, hidden inactive files, retained reads after source replacement/deletion, late-added background music and cancelled publication. The native Apply button also passed. Arbitrary new paths that would change existing entry IDs are rejected; further general hot-reload work and final installer tests remain. |
 | Separate savegame | Native page and confirmation, initially Cancel. Switches future save opens and reloads the licenses, returning to the title in the same process. | Real native-menu roundtrip passed. Both banks stayed byte-identical. An invalid target was rejected and the original bank restored, including an exact check of the loaded save core in guest memory. Final installer/update testing remains. |
 | Session isolation | Named sessions keep their own configuration, NAND, saves, cache, textures, mappings and logs while sharing immutable game content. Invalid names fail closed. | Pure contracts and two concurrent native processes passed. Each process used a distinct mutable-data directory. |
-| Four local players online | Investigating two compatible clients with separate profiles and a shared window, following the user's preference for public Retro WFC. | Private window-host prototype displayed two live title screens and restored their original windows afterwards. Controller routing, account setup, room coordination, four-player racing, display layout and performance are still unverified. |
+| Four local players online | Two compatible clients with separate profiles and a shared window, following the user's preference for public Retro WFC. An input-only local channel routes the main session's J3/J4 to the second client's J1/J2; only the main session reads physical controls. | Shared-memory tests passed in two OS processes, including analog input, retained short taps, rumble return, loading pauses and channel shutdown. Four persistent SDL virtual pads passed native 2+2 routing and twelve short navigation taps. A second license was created through the original menus; both clients reached two-player setup. Shared-window prototype works. The loading-pause fix still needs a repeated real login test; room coordination, four-player racing, display layout and performance remain unverified. |
 | CT 200cc room routing | Pending compatibility investigation. | The current native room route table has no verified path for `vs_22`. Do not route it through a different mode or advertise it as available. |
 | Launcher updates | Stable release checks official version information. | Download, staging, repair/application and coordination with active sessions still need implementation and tests. Replacing running native code is not implemented. |
 | Hardware coverage | DualSense Edge Bluetooth was verified by the user in 1.1.0. Existing virtual-controller and aspect-ratio tests remain relevant. | More physical models, simultaneous controllers, the integrated GPU, and combined online-session performance still need validation. |
@@ -28,6 +28,17 @@ an already open DVD handle. Reads retain their published catalogue while in
 progress; cancellation does not change the active catalogue or setting. The
 cache is not pruned while old handles may still refer to its contents. The five
 standard background-music paths are reserved at boot, including absent files.
+
+The local input channel is a development component; the stable launcher does not
+enable it. Its coordinator must supply a fresh 32-character hexadecimal group
+name and a host/follower role. The follower uses the main process's completed
+input mapping, avoiding SDL device-order differences across processes. It does
+not poll physical input or apply a second set of keyboard bindings. Short button
+presses are retained for at most 250 ms and consumed once, including when the
+consumer polls after release. Old inputs are neutralized during loading while
+the owning Windows process is alive. Closing the channel or losing the process
+disconnects the controls. An abandoned shared-memory lock invalidates the
+channel. Host gamepads work in the background while both sessions run.
 
 Save switching is available from Options. The pause menu does not permit a live
 save change during a race. Busy saves or an invalid target retain the current
