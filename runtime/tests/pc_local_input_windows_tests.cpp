@@ -21,7 +21,12 @@ int main(int argc,char** argv){
         Pads pads;const auto deadline=GetTickCount64()+5000;
         do{pads=Receive();if(pads[0][10]==0)break;Sleep(5);}while(GetTickCount64()<deadline);
         if(liveness){
-            assert(pads[0][10]==0);SetEvent(ready);assert(WaitForSingleObject(stale,5000)==WAIT_OBJECT_0);
+            assert(pads[0][10]==0);
+            const auto wireName=std::wstring(L"Local\\MarioKartWiiInput_")+std::wstring(group.begin(),group.end())+L"_lock";
+            auto wire=OpenMutexW(SYNCHRONIZE|MUTEX_MODIFY_STATE,FALSE,wireName.c_str());assert(wire);
+            assert(WaitForSingleObject(wire,5000)==WAIT_OBJECT_0);
+            SetEvent(ready);assert(WaitForSingleObject(stale,5000)==WAIT_OBJECT_0);
+            ReleaseMutex(wire);CloseHandle(wire);
             assert(Receive()==Disconnected());Stop();CloseHandle(ready);CloseHandle(stale);return 0;
         }
         assert(BigEndian::Read16(pads[0].data())==0x400&&BigEndian::Read16(pads[1].data())==0x800);

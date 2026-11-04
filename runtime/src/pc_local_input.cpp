@@ -91,9 +91,11 @@ struct CapturedInput {Presses presses;std::array<bool,2> disconnected{};};
 CapturedInput& Captured(){static CapturedInput value;return value;}
 void CloseChannel(){
     auto& channel=Current();
-    if(Selected().role==Role::Host&&channel.shared&&channel.Lock()){
-        channel.shared->signature=0;channel.shared->frameAt=0;channel.Unlock();
-    }
+    // Closing must invalidate the channel even while the other process is
+    // reading under its mutex. An aligned interlocked write cannot leave the
+    // old channel apparently alive after the host has released its handles.
+    if(Selected().role==Role::Host&&channel.shared)
+        InterlockedExchange(reinterpret_cast<volatile LONG*>(&channel.shared->signature),0);
     if(Selected().role==Role::Follower&&channel.shared&&channel.Lock()){
         if(channel.shared->client==GetCurrentProcessId()){channel.shared->client=0;channel.shared->clientAt=0;channel.shared->motors={};}
         channel.Unlock();
