@@ -38,5 +38,7 @@
   "runtime/src/pc_texture_packs.cpp",
   "runtime/src/dynamic_aspect.cpp",
   "runtime/include/pc_texture_archive.h",
-  "runtime/src/pc_texture_archive.cpp"
+  "runtime/src/pc_texture_archive.cpp",
+  "runtime/src/hle/storage/nand_fs.cpp",
+  "runtime/include/pc_session_profile.h"
 ]

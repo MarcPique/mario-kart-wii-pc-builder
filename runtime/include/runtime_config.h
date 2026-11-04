@@ -22,6 +22,7 @@
 #include "platform/host_platform.h"
 #include "pc_locale_catalog.h"
 #include "pc_aspect_ratio.h"
+#include "pc_session_profile.h"
 #ifdef _WIN32
 #ifndef WIN32_LEAN_AND_MEAN
 #define WIN32_LEAN_AND_MEAN
@@ -35,6 +36,8 @@
 
 struct RuntimeUserConfig {
     std::optional<std::string> gameLanguage;
+    std::optional<uint32_t> myStuffMode;
+    std::optional<bool> separateRetroSave;
     std::optional<uint32_t> qualityPreset;
     std::optional<bool> widescreen;
     std::optional<bool> forceAspect169;
@@ -232,7 +235,7 @@ inline const std::optional<std::filesystem::path>& PortableRootDirectory() {
     return root;
 }
 
-inline std::filesystem::path ApplicationDataDirectory() {
+inline std::filesystem::path BaseApplicationDataDirectory() {
     if (const auto& portableRoot = PortableRootDirectory()) {
         return *portableRoot / kPortableUserDataDirectoryName;
     }
@@ -256,6 +259,12 @@ inline std::filesystem::path ApplicationDataDirectory() {
     }
 #endif
     return std::filesystem::current_path() / kApplicationDirectoryName;
+}
+
+inline std::filesystem::path ApplicationDataDirectory(){
+    const auto base=BaseApplicationDataDirectory();
+    const auto& profile=PcSessionProfile::Current();
+    return profile?PcSessionProfile::Directory(base,*profile):base;
 }
 
 inline std::filesystem::path ResolveConfigPath() {
@@ -410,6 +419,8 @@ inline RuntimeUserConfig ParseConfigDocument(const toml::value& document) {
     }
 
     if (auto value=FindConfigValue<std::string>(document,"system","language");value&&PcLocaleCatalog::Known(*value)) config.gameLanguage=*value;
+    if (auto value=FindConfigValue<uint32_t>(document,"retro","my_stuff");value&&*value<=4) config.myStuffMode=*value;
+    config.separateRetroSave=FindConfigValue<bool>(document,"retro","separate_save");
     if (auto value=FindConfigUint(document,"video","quality_preset");value&&*value<=5)config.qualityPreset=*value;
     if (auto value = FindConfigUint(document, "video", "msaa_samples"); value && (*value == 1 || *value == 4)) config.msaaSamples = *value;
     if (auto value = FindConfigUint(document, "video", "anisotropy"); value && (*value == 1 || *value == 2 || *value == 4 || *value == 8 || *value == 16)) config.anisotropy = *value;

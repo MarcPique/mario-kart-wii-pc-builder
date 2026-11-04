@@ -127,7 +127,12 @@ def apply_sources(work,payload):
     workspace=work/'Install/BuildWorkspace'
     for p in (payload/'patches').rglob('*'):
         if p.is_file():
-            target=workspace/p.relative_to(payload/'patches');target.parent.mkdir(parents=True,exist_ok=True);shutil.copy2(p,target)
+            target=workspace/p.relative_to(payload/'patches');target.parent.mkdir(parents=True,exist_ok=True)
+            if target.is_file() and sha(target)==sha(p):continue
+            shutil.copy2(p,target)
+            # A downgrade or a preserved checkout timestamp may predate the
+            # existing object. Ninja must still rebuild changed source bytes.
+            target.touch()
 
 def translate(work,log,jobs):
     workspace=work/'Install/BuildWorkspace';tool=work/'Install/Toolkit/Translator/Translator.Cli.exe';project=workspace/'projects/mkwii/recomp.yml';generated=workspace/'generated';metadata=generated/'base_translation_output.json';functions=generated/'functions';manifest=workspace/'build/base/mkwii_base_manifest.json';retro=work/'RetroRewind6';mod=workspace/'build/mods/retro_rewind_full_cpp'

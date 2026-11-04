@@ -19,6 +19,12 @@
 #include <unordered_set>
 #include <charconv>
 extern "C" bool DVDMyStuffEntryVisible(int32_t index);
+extern "C" unsigned DVDMyStuffMode();
+extern "C" bool DVDMyStuffAvailable();
+extern "C" bool DVDMyStuffSwitch(unsigned mode);
+extern "C" bool DVDMyStuffOpenFolder();
+extern "C" bool NANDRetroSaveSwitch(bool separate);
+extern "C" bool NANDRetroSaveSeparate();
 namespace {
 constexpr uint32_t kLabel=0x7E000000u,kPcButtonId=0x7F00;
 struct Resource {std::array<uint32_t,6> args;};
@@ -29,7 +35,8 @@ std::unordered_map<uint32_t,std::u16string> messages;
 std::unordered_set<uint32_t> stockLabels;
 std::array<uint32_t,5> originalRadioCounts{};
 uint32_t activePage=0,ownerPage=0,sheet=0,textScratch=0;
-unsigned selectedController=0;
+unsigned selectedController=0,selectedMyStuff=0;
+bool myStuffFailed=false,selectedSeparateSave=false,saveFailed=false,saveApplyPending=false,exitSwitchSave=false;
 unsigned selectedRoom=0;
 std::vector<std::string> roomIds;
 std::vector<std::u16string> roomValues;
@@ -112,6 +119,23 @@ std::vector<std::u16string> ControllerChoices(const std::vector<std::u16string>&
     return result;
 }
 std::u16string ExitTitle(){return T(u"Salir al escritorio",u"Exit to desktop",u"Quitter le jeu",u"Zum Desktop",u"Esci sul desktop");}
+std::u16string SaveTitle(){return T(u"Partidas",u"Savegame",u"Sauvegarde",u"Spielstand",u"Salvataggio");}
+std::u16string SaveSeparateLabel(){return T(u"Partida separada",u"Separate savegame",u"Sauvegarde séparée",u"Separater Spielstand",u"Salvataggio separato");}
+std::vector<std::u16string> SaveChoices(){return {NANDRetroSaveSeparate()?u"RetroWFC2":u"RetroWFC"};}
+std::u16string SaveDetail(){
+    if(saveFailed||!ownerPage||Memory::Read32(ownerPage+4)!=0xC0)return T(u"Partida ocupada o no disponible. Prueba desde Opciones.",u"Savegame busy or unavailable. Try again from Options.",u"Sauvegarde occupée ou indisponible. Réessayez depuis les options.",u"Spielstand belegt oder nicht verfügbar. In den Optionen erneut versuchen.",u"Salvataggio occupato o non disponibile. Riprova dalle opzioni.");
+    return T(u"Cambiar de partida vuelve a la pantalla de titulo.",u"Changing savegame returns to the title screen.",u"Changer de sauvegarde ramène à l'écran titre.",u"Ein Spielstandwechsel führt zum Titelbildschirm zurück.",u"Cambiare salvataggio riporta alla schermata del titolo.");
+}
+std::u16string MyStuffTitle(){return u"My Stuff";}
+std::vector<std::u16string> MyStuffChoices(){
+    const auto music=T(u"Musica",u"Music",u"Musique",u"Musik",u"Musica");
+    return {T(u"No",u"Off",u"Non",u"Aus",u"No"),u"CTGP",u"Retro Rewind",u"CTGP - "+music,u"Retro Rewind - "+music};
+}
+std::u16string MyStuffDetail(){
+    if(ownerPage&&Memory::Read32(ownerPage+4)!=0xC0)return T(u"Vuelve a Opciones para cambiar My Stuff.",u"Return to Options to change My Stuff.",u"Retournez aux options pour changer My Stuff.",u"Zum Ändern von My Stuff zu den Optionen zurückkehren.",u"Torna alle opzioni per cambiare My Stuff.");
+    if(myStuffFailed||!DVDMyStuffAvailable())return T(u"No se pudo aplicar My Stuff. Revisa los archivos y el registro.",u"Could not apply My Stuff. Check the files and log.",u"My Stuff non appliqué. Vérifiez les fichiers et le journal.",u"My Stuff nicht angewendet. Dateien und Protokoll prüfen.",u"My Stuff non applicato. Controlla file e registro.");
+    return T(u"My Stuff se aplica al cargar los siguientes archivos.",u"My Stuff changes apply when files are next loaded.",u"My Stuff s'applique au prochain chargement des fichiers.",u"My Stuff gilt beim nächsten Laden der Dateien.",u"My Stuff si applica al prossimo caricamento dei file.");
+}
 std::u16string TextureLabel(){return T(u"Texturas",u"Textures",u"Textures",u"Texturen",u"Texture");}
 std::u16string TextureTitle(){return T(u"Paquetes de texturas",u"Texture Packs",u"Packs de textures",u"Texturpakete",u"Pacchetti texture");}
 std::u16string AspectTitle(){return T(u"Formato",u"Aspect Ratio",u"Format",u"Bildformat",u"Formato");}
@@ -121,24 +145,25 @@ std::string TextureState(){return std::to_string(PcTexturePacks::Count())+"/"+st
 std::vector<std::u16string> AspectChoices(){std::vector<std::u16string> result;for(const auto& ratio:PcAspectRatio::ratios)result.emplace_back(ratio.name);result[0]=T(u"Automatico",u"Automatic",u"Automatique",u"Automatisch",u"Automatico");return result;}
 std::vector<std::u16string> TextureChoices(){const auto number=std::to_string(PcTexturePacks::Count());std::u16string count(number.begin(),number.end());return {count+u" PNG/DDS"};}
 void CloseExit(CpuContext* ctx){if(exitPrompt&&!exitClosing){exitClosing=true;Invoke(ctx,MKW_GADDR(8060247C),{exitPrompt});}}
-void OpenExit(CpuContext* ctx,uint32_t owner){
+void OpenExit(CpuContext* ctx,uint32_t owner,bool switchSave=false){
     const auto prompt=Memory::Read32(Section()+8+0x53*4);if(!prompt)return;
-    exitPrompt=prompt;exitOwner=owner;exitClosing=false;
+    exitPrompt=prompt;exitOwner=owner;exitClosing=false;exitSwitchSave=switchSave;
     // This native page can also serve the original game's dialogs. Restore its
     // global B binding after our layer closes, including the binding flags.
     exitOriginalBack=Memory::Read32(prompt+0x6C);
     exitOriginalRepeat=Memory::Read8(prompt+0x8D);exitOriginalPointer=Memory::Read8(prompt+0x96);
     Invoke(ctx,MKW_GADDR(806530D0),{prompt});
-    Invoke(ctx,MKW_GADDR(8065313C),{prompt,Label(170,ExitTitle()),0});
-    Invoke(ctx,MKW_GADDR(806525FC),{prompt,Label(171,T(u"¿Seguro que quieres salir al escritorio?",u"Are you sure you want to exit to the desktop?",u"Voulez-vous vraiment quitter le jeu ?",u"Möchtest du das Spiel wirklich beenden?",u"Vuoi davvero uscire sul desktop?")),0});
-    Invoke(ctx,MKW_GADDR(80652604),{prompt,0,Label(172,T(u"Salir",u"Exit",u"Quitter",u"Beenden",u"Esci")),0,0,0});
+    Invoke(ctx,MKW_GADDR(8065313C),{prompt,Label(170,switchSave?SaveTitle():ExitTitle()),0});
+    Invoke(ctx,MKW_GADDR(806525FC),{prompt,Label(171,switchSave?SaveDetail():T(u"¿Seguro que quieres salir al escritorio?",u"Are you sure you want to exit to the desktop?",u"Voulez-vous vraiment quitter le jeu ?",u"Möchtest du das Spiel wirklich beenden?",u"Vuoi davvero uscire sul desktop?")),0});
+    Invoke(ctx,MKW_GADDR(80652604),{prompt,0,Label(172,switchSave?T(u"Aplicar",u"Apply",u"Appliquer",u"Anwenden",u"Applica"):T(u"Salir",u"Exit",u"Quitter",u"Beenden",u"Esci")),0,0,0});
     Invoke(ctx,MKW_GADDR(80652604),{prompt,1,Label(173,T(u"Cancelar",u"Cancel",u"Annuler",u"Abbrechen",u"Annulla")),0,0,0});
     Memory::Write32(prompt+0x27C,1); // Safe default: Cancel, including controller navigation.
     Invoke(ctx,MKW_GADDR(805F0D84),{prompt+0x4C,1,exitBackHandler,0,0});
     exitHidden.clear();const auto array=Memory::Read32(owner+0x24),count=Memory::Read32(owner+0x34);
     for(unsigned i=0;i<count;++i){const auto control=Memory::Read32(array+i*4);if(control){exitHidden.push_back({control,Memory::Read8(control+0x80)});Memory::Write8(control+0x80,1);}}
     Invoke(ctx,MKW_GADDR(80622E00),{Section(),0x53,0});
-    RT_LOGF("pc-exit","Native exit confirmation opened; Cancel selected by default\n");
+    if(switchSave)RT_LOGF("pc-save","Native confirmation opened; Cancel selected by default\n");
+    else RT_LOGF("pc-exit","Native confirmation opened; Cancel selected by default\n");
 }
 std::u16string UpdatesTitle(){return T(u"Actualizaciones",u"Updates",u"Mises à jour",u"Updates",u"Aggiornamenti");}
 std::u16string RoomsTitle(){return T(u"Salas publicas",u"Public rooms",u"Salles publiques",u"Öffentliche Räume",u"Stanze pubbliche");}
@@ -210,7 +235,7 @@ std::string UpdateStateKey(){const auto state=PcOnlineRooms::GetUpdates();return
 std::u16string UpdateDetail(){const auto state=PcOnlineRooms::GetUpdates();if(!state.checked)return T(u"Buscando actualizaciones...",u"Checking for updates...",u"Recherche de mises à jour...",u"Suche nach Updates...",u"Ricerca aggiornamenti...");if(!state.available)return T(u"No se pudo comprobar la version.",u"Unable to check version.",u"Vérification impossible.",u"Prüfung nicht möglich.",u"Impossibile verificare.");if(state.newer)return T(u"Nueva version: necesita recompilar el juego.",u"New version: the game must be rebuilt.",u"Nouvelle version : recompilation nécessaire.",u"Neue Version: Neuübersetzung nötig.",u"Nuova versione: ricompilazione necessaria.");return T(u"Retro Rewind esta actualizado.",u"Retro Rewind is up to date.",u"Retro Rewind est à jour.",u"Retro Rewind ist aktuell.",u"Retro Rewind è aggiornato.");}
 void Configure(CpuContext* ctx,uint32_t page) {
     RefreshMenuTranslations();
-    const auto title=sheet==6?InternalTitle():sheet==7?TextureTitle():sheet==5?RoomsTitle():sheet==4?UpdatesTitle():sheet==3?ControllersTitle():sheet==2?PcMenuLocale::Language():sheet==1?PcMenuLocale::Quality():PcMenuLocale::Display();
+    const auto title=sheet==9?SaveTitle():sheet==8?MyStuffTitle():sheet==6?InternalTitle():sheet==7?TextureTitle():sheet==5?RoomsTitle():sheet==4?UpdatesTitle():sheet==3?ControllersTitle():sheet==2?PcMenuLocale::Language():sheet==1?PcMenuLocale::Quality():PcMenuLocale::Display();
     Memory::Write32(page+0x3E4,Label(1,title));Text(ctx,Memory::Read32(page+0x2B8),1,title);
     const auto devices=settings_overlay::PcControllerDevices();
     visibleControllers=devices;
@@ -224,17 +249,23 @@ void Configure(CpuContext* ctx,uint32_t page) {
     updateChoices[0]={T(u"Revisar",u"Check",u"Vérifier",u"Prüfen",u"Verifica")};
     auto roomChoices=updateChoices;auto roomNames=updateNames;
     roomNames[0]=T(u"Sala",u"Room",u"Salle",u"Raum",u"Stanza");roomChoices[0]={T(u"Elegir",u"Select",u"Choisir",u"Wählen",u"Seleziona")};
+    auto saveChoices=choices2;auto saveNames=names2;
+    saveNames[0]=SaveSeparateLabel();saveChoices[0]={T(u"No",u"Off",u"Non",u"Aus",u"No"),T(u"Si",u"On",u"Oui",u"An",u"Sì")};
+    saveNames[1]=T(u"Aplicar",u"Apply",u"Appliquer",u"Anwenden",u"Applica");saveChoices[1]={saveNames[1]};
+    auto myStuffChoices=choices2;auto myStuffNames=names2;
+    myStuffNames[0]=T(u"Aplicar",u"Apply",u"Appliquer",u"Anwenden",u"Applica");myStuffChoices[0]={myStuffNames[0]};
+    myStuffNames[1]=T(u"Carpeta",u"Folder",u"Dossier",u"Ordner",u"Cartella");myStuffChoices[1]={T(u"Abrir",u"Open",u"Ouvrir",u"Öffnen",u"Apri")};
     auto featureChoices=choices2;auto featureNames=names2;
     featureNames[0]=TextureLabel();featureChoices[0]={T(u"No",u"Off",u"Non",u"Aus",u"No"),T(u"Si",u"On",u"Oui",u"An",u"Sì")};
     featureNames[1]=T(u"Recargar",u"Reload",u"Recharger",u"Neu laden",u"Ricarica");featureChoices[1]={featureNames[1]};
     featureNames[2]=T(u"Carpeta",u"Folder",u"Dossier",u"Ordner",u"Cartella");featureChoices[2]={T(u"Abrir",u"Open",u"Ouvrir",u"Öffnen",u"Apri")};
     choices0[1][1]=std::u16string(PcAspectRatio::ratios[settings_overlay::PcAspectIndex()>1?settings_overlay::PcAspectIndex():5].name);
-    const auto& choices=sheet==7?featureChoices:sheet==5?roomChoices:sheet==4?updateChoices:sheet==3?controllerChoices:sheet==2?choices2:sheet==1?choices1:choices0;const auto& names=sheet==7?featureNames:sheet==5?roomNames:sheet==4?updateNames:sheet==3?controllerNames:sheet==2?names2:sheet==1?names1:names0;
+    const auto& choices=sheet==9?saveChoices:sheet==8?myStuffChoices:sheet==7?featureChoices:sheet==5?roomChoices:sheet==4?updateChoices:sheet==3?controllerChoices:sheet==2?choices2:sheet==1?choices1:choices0;const auto& names=sheet==9?saveNames:sheet==8?myStuffNames:sheet==7?featureNames:sheet==5?roomNames:sheet==4?updateNames:sheet==3?controllerNames:sheet==2?names2:sheet==1?names1:names0;
     for(unsigned i=0;i<5;++i) {
         auto radio=page+0x6C4+i*0x298;const auto count=std::min<unsigned>(originalRadioCounts[i],choices[i].size());
-        const bool hidden=sheet==6||(sheet==7&&i>2)||(sheet==2&&i>2)||(sheet==3&&i>3)||((sheet==4||sheet==5)&&i>0);
+        const bool hidden=sheet==6||(sheet==9&&i>1)||(sheet==8&&i>1)||(sheet==7&&i>2)||(sheet==2&&i>2)||(sheet==3&&i>3)||((sheet==4||sheet==5)&&i>0);
         Memory::Write8(radio+0x80,hidden);Memory::Write8(radio+0x285,hidden);
-        Memory::Write32(radio+0x200,count);auto selected=std::min(sheet==7?(i==0?unsigned(PcTexturePacks::Enabled()):0u):sheet>=4?0u:sheet==3?static_cast<unsigned>(settings_overlay::PcControllerSelected(i,selectedController)):settings_overlay::PcGraphicsValue(sheet,i),count?count-1:0);
+        Memory::Write32(radio+0x200,count);auto selected=std::min(sheet==9?(i==0?unsigned(selectedSeparateSave):0u):sheet==7?(i==0?unsigned(PcTexturePacks::Enabled()):0u):sheet>=4?0u:sheet==3?static_cast<unsigned>(settings_overlay::PcControllerSelected(i,selectedController)):settings_overlay::PcGraphicsValue(sheet,i),count?count-1:0);
         Memory::Write32(radio+0x204,selected);Memory::Write32(radio+0x208,selected);
         Text(ctx,radio,10+i,names[i]);const auto options=Memory::Read32(radio+0x294);
         for(unsigned j=0;j<originalRadioCounts[i];++j){auto button=options+j*0x17C;Memory::Write8(button+0x80,j>=count);Invoke(ctx,MKW_GADDR(80606C48),{button,j==selected});if(j<count)Text(ctx,button,20+i*4+j,choices[i][j]);}
@@ -243,22 +274,22 @@ void Configure(CpuContext* ctx,uint32_t page) {
     const std::vector<std::u16string> updateValues{PcOnlineRooms::UpdateSummary()};
     const auto controllerValues=ControllerChoices(devices);
     const auto aspectValues=AspectChoices(),textureValues=TextureChoices();
-    const auto scroller=page+0x13BC;const auto& values=sheet==0?aspectValues:sheet==6?scales:sheet==7?textureValues:sheet==5?roomValues:sheet==4?updateValues:sheet==3?controllerValues:sheet==2?PcMenuLocale::Languages():sheet==1?presets:scales;
-    const auto position=sheet==0?settings_overlay::PcAspectIndex():sheet==6?settings_overlay::PcGraphicsScroller(0):sheet==7?0u:sheet==5?selectedRoom:sheet==4?0u:sheet==3?selectedController:settings_overlay::PcGraphicsScroller(sheet);
+    const auto scroller=page+0x13BC;const auto& values=sheet==9?SaveChoices():sheet==8?MyStuffChoices():sheet==0?aspectValues:sheet==6?scales:sheet==7?textureValues:sheet==5?roomValues:sheet==4?updateValues:sheet==3?controllerValues:sheet==2?PcMenuLocale::Languages():sheet==1?presets:scales;
+    const auto position=sheet==9?0u:sheet==8?selectedMyStuff:sheet==0?settings_overlay::PcAspectIndex():sheet==6?settings_overlay::PcGraphicsScroller(0):sheet==7?0u:sheet==5?selectedRoom:sheet==4?0u:sheet==3?selectedController:settings_overlay::PcGraphicsScroller(sheet);
     Invoke(ctx,MKW_GADDR(8063F0C0),{scroller,static_cast<uint32_t>(values.size()),position});
-    Text(ctx,scroller,50,sheet==0?AspectTitle():sheet==6?InternalTitle():sheet==7?TextureLabel():sheet==5?RoomsTitle():sheet==4?T(u"Version",u"Version",u"Version",u"Version",u"Versione"):sheet==3?T(u"Dispositivo",u"Device",u"Appareil",u"Gerät",u"Dispositivo"):sheet==2?PcMenuLocale::Language():sheet==1?T(u"Calidad",u"Quality",u"Qualité",u"Qualität",u"Qualità"):T(u"Resolucion interna",u"Internal Resolution",u"Résolution interne",u"Interne Auflösung",u"Risoluzione interna"));
+    Text(ctx,scroller,50,sheet==9?SaveTitle():sheet==8?MyStuffTitle():sheet==0?AspectTitle():sheet==6?InternalTitle():sheet==7?TextureLabel():sheet==5?RoomsTitle():sheet==4?T(u"Version",u"Version",u"Version",u"Version",u"Versione"):sheet==3?T(u"Dispositivo",u"Device",u"Appareil",u"Gerät",u"Dispositivo"):sheet==2?PcMenuLocale::Language():sheet==1?T(u"Calidad",u"Quality",u"Qualité",u"Qualität",u"Qualità"):T(u"Resolucion interna",u"Internal Resolution",u"Résolution interne",u"Interne Auflösung",u"Risoluzione interna"));
     const auto value=std::min<unsigned>(position,values.size()-1);
     Text(ctx,Memory::Read32(page+0x1984+0x464),51,values[value]);
-    const auto next=sheet==6?TextureTitle():sheet==7?PcMenuLocale::Display():sheet==0?PcMenuLocale::Quality():sheet==1?PcMenuLocale::Language():sheet==2?ControllersTitle():sheet==3?UpdatesTitle():InternalTitle();
+    const auto next=sheet==6?TextureTitle():sheet==7?MyStuffTitle():sheet==8?SaveTitle():sheet==9?PcMenuLocale::Display():sheet==0?PcMenuLocale::Quality():sheet==1?PcMenuLocale::Language():sheet==2?ControllersTitle():sheet==3?UpdatesTitle():InternalTitle();
     const auto external=Memory::Read32(page+0x48);if(Memory::Read32(page+0x4C)){const auto control=Memory::Read32(external);if(sheet==5)Memory::Write8(control+0x80,1);Text(ctx,control,60,next);}
     if(const auto bottom=Memory::Read32(page+0x2BC);bottom){const auto ownerId=ownerPage?Memory::Read32(ownerPage+4):0;Memory::Write8(bottom+0x80,ownerId>=0x17&&ownerId<=0x1A);}
     if(sheet==4)visibleUpdateState=UpdateStateKey();
     if(sheet==7)visibleTextureState=TextureState();
-    Bottom(ctx,sheet==0?T(u"Automatico llena la ventana. Los formatos fijos conservan las proporciones.",u"Automatic fills the window. Fixed ratios preserve proportions.",u"Automatique remplit la fenêtre. Les formats fixes gardent les proportions.",u"Automatisch füllt das Fenster. Feste Formate erhalten die Proportionen.",u"Automatico riempie la finestra. I formati fissi mantengono le proporzioni."):sheet==7?TextureDetail():sheet==5?T(u"Elige una sala publica. B: volver.",u"Choose a public room. B: back.",u"Choisissez une salle. B : retour.",u"Raum wählen. B: zurück.",u"Scegli una stanza. B: indietro."):sheet==4?UpdateDetail():sheet==3?T(u"Elige un dispositivo y asignalo a un jugador.",u"Choose a device and assign it to a player.",u"Choisissez un appareil et un joueur.",u"Gerät und Spieler auswählen.",u"Scegli dispositivo e giocatore."):sheet==2?T(u"El idioma cambia inmediatamente. Guardado automatico.",u"Language changes immediately. Saved automatically.",u"Changement de langue immédiat. Sauvegarde auto.",u"Sprache wird sofort geändert. Automatisch gespeichert.",u"La lingua cambia subito. Salvataggio automatico."):T(u"Guardado automatico. B: volver.",u"Saved automatically. B: back.",u"Sauvegarde auto. B : retour.",u"Automatisch gespeichert. B: zurück.",u"Salvataggio automatico. B: indietro."));
+    Bottom(ctx,sheet==9?SaveDetail():sheet==8?MyStuffDetail():sheet==0?T(u"Automatico llena la ventana. Los formatos fijos conservan las proporciones.",u"Automatic fills the window. Fixed ratios preserve proportions.",u"Automatique remplit la fenêtre. Les formats fixes gardent les proportions.",u"Automatisch füllt das Fenster. Feste Formate erhalten die Proportionen.",u"Automatico riempie la finestra. I formati fissi mantengono le proporzioni."):sheet==7?TextureDetail():sheet==5?T(u"Elige una sala publica. B: volver.",u"Choose a public room. B: back.",u"Choisissez une salle. B : retour.",u"Raum wählen. B: zurück.",u"Scegli una stanza. B: indietro."):sheet==4?UpdateDetail():sheet==3?T(u"Elige un dispositivo y asignalo a un jugador.",u"Choose a device and assign it to a player.",u"Choisissez un appareil et un joueur.",u"Gerät und Spieler auswählen.",u"Scegli dispositivo e giocatore."):sheet==2?T(u"El idioma cambia inmediatamente. Guardado automatico.",u"Language changes immediately. Saved automatically.",u"Changement de langue immédiat. Sauvegarde auto.",u"Sprache wird sofort geändert. Automatisch gespeichert.",u"La lingua cambia subito. Salvataggio automatico."):T(u"Guardado automatico. B: volver.",u"Saved automatically. B: back.",u"Sauvegarde auto. B : retour.",u"Automatisch gespeichert. B: zurück.",u"Salvataggio automatico. B: indietro."));
     if(sheet==3)Bottom(ctx,devices[selectedController]);
 }
 void Open(CpuContext* ctx,uint32_t owner,bool rooms=false) {
-    if(activePage)return;ownerPage=owner;sheet=rooms?5:0;closingPc=false;if(rooms){selectedRoom=0;RefreshRoomChoices();PcOnlineRooms::Refresh();}
+    if(activePage)return;ownerPage=owner;sheet=rooms?5:0;closingPc=false;selectedMyStuff=DVDMyStuffMode();myStuffFailed=false;selectedSeparateSave=NANDRetroSaveSeparate();saveFailed=false;if(rooms){selectedRoom=0;RefreshRoomChoices();PcOnlineRooms::Refresh();}
     const auto section=Section();auto page=Memory::Read32(section+8+0x73*4);
     if(!page){creatingPc=true;try{Invoke(ctx,MKW_GADDR(80622D08),{section,0x73});}catch(...){creatingPc=false;throw;}creatingPc=false;page=Memory::Read32(section+8+0x73*4);}
     if(!page)throw std::runtime_error("Original graphics page unavailable");
@@ -273,6 +304,40 @@ void Open(CpuContext* ctx,uint32_t owner,bool rooms=false) {
     RT_LOGF("pc-options","Opened ORIGINAL VSSettings controls from page %u\n",Memory::Read32(owner+4));
 }
 void Close(CpuContext* ctx,uint32_t page){closingPc=true;Memory::Write32(page+0x3E8,0xFFFFFFFFu);Invoke(ctx,MKW_GADDR(8060247C),{page});}
+bool ApplySaveSwitch(CpuContext* ctx){
+    const auto mgr=Memory::Read32(MKW_GADDR(809BD748)),sectionMgr=Memory::Read32(MKW_GADDR(809C1E38));
+    if(!ownerPage||Memory::Read32(ownerPage+4)!=0xC0||!mgr||!Memory::Contains(mgr,0x25008)||Memory::Read8(mgr+0x25000))return false;
+    const auto requester=Memory::Read32(sectionMgr+0x90),raw=Memory::Read32(mgr+0x14);
+    if(!requester||!Memory::Contains(raw,0x28000)||Invoke(ctx,MKW_GADDR(806212FC),{requester}))return false;
+    for(const auto address:{MKW_GADDR(80548104),MKW_GADDR(8054454C),MKW_GADDR(8054484C),MKW_GADDR(80620C5C),MKW_GADDR(80635A3C),MKW_GADDR(80635AC8)}){
+        const auto* entry=TranslatedFunctionRegistry::FindByAddressPtr(address);if(!entry||!entry->rawCpuInvoker)return false;
+    }
+    const bool previous=NANDRetroSaveSeparate();
+    if(!NANDRetroSaveSwitch(selectedSeparateSave))return false;
+    if(!RuntimeConfigFile::WriteSetting("retro","separate_save",selectedSeparateSave?"true":"false")){NANDRetroSaveSwitch(previous);return false;}
+    const auto reload=[&]{
+        Invoke(ctx,MKW_GADDR(80548104),{raw});
+        for(unsigned i=0;i<4;++i)Invoke(ctx,MKW_GADDR(8054454C),{mgr+0x38+i*0x93F0,0});
+        Memory::Write8(mgr+0x24FF8,0);Memory::Write8(mgr+0x25001,0);Memory::Write8(mgr+0x25002,0);
+        Invoke(ctx,MKW_GADDR(8054484C),{mgr});
+    };
+    reload();
+    const auto error=Memory::Read32(mgr+0x25004);
+    // 4 is the original no-save result; its normal first-run flow creates a
+    // fresh bank. Corrupt/access/busy results must never overwrite either bank.
+    const bool valid=Memory::Read8(mgr+0x25001)&&Memory::Read8(mgr+0x25002);
+    if((error!=0&&error!=4)||(error==0&&!valid)){
+        if(!NANDRetroSaveSwitch(previous))throw std::runtime_error("Unable to restore previous save root");
+        reload();RuntimeConfigFile::WriteSetting("retro","separate_save",previous?"true":"false");
+        RT_LOGF("pc-save","Target save rejected (I/O %u, valid %u); previous save restored\n",error,valid?1:0);return false;
+    }
+    RuntimeConfigFile::Mutable().separateRetroSave=selectedSeparateSave;
+    const auto next=Invoke(ctx,MKW_GADDR(80620C5C),{requester});
+    Close(ctx,activePage);
+    Invoke(ctx,MKW_GADDR(80635A3C),{sectionMgr,next==0xFFFFFFFFu?0x3Fu:next,0});
+    Invoke(ctx,MKW_GADDR(80635AC8),{sectionMgr,0,0});
+    RT_LOGF("pc-save","Switched savegame and reloaded licenses without restarting process\n");return true;
+}
 void AddButton(CpuContext* ctx,uint32_t page,uint32_t source,uint32_t last,unsigned count,bool pause,uint32_t handler) {
     if(extraButtons.contains(page)||!resources.contains(source))return;
     const auto group=page+0x24,n=Memory::Read32(group+0x10);if(n>32)throw std::runtime_error("Unexpected control count");
@@ -384,7 +449,17 @@ extern "C" void PcPageInit(CpuContext* ctx){const auto page=ctx->gpr[3],id=ctx->
         for(unsigned i=0;i<5;++i)Memory::Write32(exitBackHandler+i*4,Memory::Read32(page+0x694+i*4));
         Memory::Write32(exitBackHandler+4,Memory::Read32(Section()+8+0x53*4));Memory::Write32(exitBackHandler+8,0);Memory::Write32(exitBackHandler+12,0xFFFFFFFFu);Memory::Write32(exitBackHandler+16,MKW_GADDR(808516AC));
     }
-    if(id==0xC0)AddButton(ctx,page,page+0x404,page+0x8AC,3,false,MKW_GADDR(805FD90C));
+    if(id==0xC0){
+        AddButton(ctx,page,page+0x404,page+0x8AC,3,false,MKW_GADDR(805FD90C));
+        // This section does not normally create SourceYesNo. Prepare it while
+        // the scene heap is unlocked, before a live save-change confirmation.
+        if(!Memory::Read32(Section()+8+0x53*4))Invoke(ctx,MKW_GADDR(80622D08),{Section(),0x53});
+        exitBackHandler=Alloc(ctx,0x14);
+        for(unsigned i=0;i<5;++i)Memory::Write32(exitBackHandler+i*4,Memory::Read32(page+0x58+i*4));
+        Memory::Write32(exitBackHandler+4,Memory::Read32(Section()+8+0x53*4));
+        Memory::Write32(exitBackHandler+8,0);Memory::Write32(exitBackHandler+12,0xFFFFFFFFu);
+        Memory::Write32(exitBackHandler+16,MKW_GADDR(808516AC));
+    }
     if(id==0x8B){
         AddButton(ctx,page,page+0xFAC,page+0xFAC,1,false,MKW_GADDR(8064BCE8));
         if(extraButtons.contains(page))Text(ctx,extraButtons.at(page).button,110,T(u"Salas",u"Rooms",u"Salles",u"Räume",u"Stanze"));
@@ -406,22 +481,23 @@ extern "C" void PcOptionsClick(CpuContext* ctx){const auto p=ctx->gpr[3];if(extr
 REGISTER_NATIVE_WRAPPER_AS(0x805FD90C,PcOptionsClick,"PcOriginalUI_OptionsClick");
 extern "C" void PcSettingsActivate(CpuContext* ctx){const auto page=ctx->gpr[3];if(page!=activePage){MKW_GUEST_NEXT(8085354C)(ctx);return;}Memory::Write32(page+0x3E4,Label(1,PcMenuLocale::Display()));Invoke(ctx,MKW_GADDR(80837170),{page});Configure(ctx,page);Invoke(ctx,MKW_GADDR(80605D74),{page+0x6C4,0});}
 REGISTER_NATIVE_WRAPPER_AS(0x8085354C,PcSettingsActivate,"PcOriginalUI_GraphicsActivate");
-extern "C" void PcSettingsButton(CpuContext* ctx){if(ctx->gpr[3]!=activePage){MKW_GUEST_NEXT(80853654)(ctx);return;}if(ctx->gpr[4]==activePage+0x54){Close(ctx,activePage);return;}if(sheet==5)return;sheet=sheet==4?6:sheet==6?7:sheet==7?0:sheet+1;Configure(ctx,activePage);Invoke(ctx,MKW_GADDR(80602378),{activePage});}
+extern "C" void PcSettingsButton(CpuContext* ctx){if(ctx->gpr[3]!=activePage){MKW_GUEST_NEXT(80853654)(ctx);return;}if(ctx->gpr[4]==activePage+0x54){Close(ctx,activePage);return;}if(sheet==5)return;sheet=sheet==4?6:sheet==6?7:sheet==7?8:sheet==8?9:sheet==9?0:sheet+1;Configure(ctx,activePage);Invoke(ctx,MKW_GADDR(80602378),{activePage});}
 REGISTER_NATIVE_WRAPPER_AS(0x80853654,PcSettingsButton,"PcOriginalUI_GraphicsSheet");
 extern "C" void PcSettingsBack(CpuContext* ctx){if(ctx->gpr[3]==activePage)Close(ctx,activePage);else MKW_GUEST_NEXT(808536B4)(ctx);}
 REGISTER_NATIVE_WRAPPER_AS(0x808536B4,PcSettingsBack,"PcOriginalUI_GraphicsBack");
-extern "C" void PcRadioClick(CpuContext* ctx){if(ctx->gpr[3]!=activePage){MKW_GUEST_NEXT(80853714)(ctx);return;}auto row=Memory::Read32(ctx->gpr[4]+0x20C);if(sheet==7){if(row==0)PcTexturePacks::SetEnabled(ctx->gpr[6]!=0);else if(row==1)PcTexturePacks::Reload();else if(row==2)PcTexturePacks::OpenFolder();Configure(ctx,activePage);}else if(sheet==5){if(row==0&&selectedRoom<roomIds.size()){pendingRoomId=roomIds[selectedRoom];RT_LOGF("pc-ui-test","Public room selected in native menu\n");Close(ctx,activePage);}}else if(sheet==4){if(row==0){PcOnlineRooms::RefreshUpdates();Bottom(ctx,UpdateDetail());}}else if(sheet==3&&row<4){const bool assigned=selectedController<visibleControllerIds.size()&&settings_overlay::PcControllerAssign(row,visibleControllerIds[selectedController],ctx->gpr[6]!=0);Configure(ctx,activePage);if(!assigned)Bottom(ctx,T(u"Mando desconectado. Elige otro dispositivo.",u"Controller disconnected. Choose another device.",u"Manette déconnectée. Choisissez un appareil.",u"Controller getrennt. Anderes Gerät wählen.",u"Controller scollegato. Scegli un altro dispositivo."));}else if(row<5&&sheet<3)settings_overlay::SetPcGraphicsValue(sheet,row,ctx->gpr[6]);}
+extern "C" void PcRadioClick(CpuContext* ctx){if(ctx->gpr[3]!=activePage){MKW_GUEST_NEXT(80853714)(ctx);return;}auto row=Memory::Read32(ctx->gpr[4]+0x20C);if(sheet==9){if(row==0){selectedSeparateSave=ctx->gpr[6]!=0;saveFailed=false;Configure(ctx,activePage);}else if(row==1){if(ownerPage&&Memory::Read32(ownerPage+4)==0xC0&&selectedSeparateSave!=NANDRetroSaveSeparate())OpenExit(ctx,activePage,true);else Bottom(ctx,SaveDetail());}}else if(sheet==8){if(row==1){DVDMyStuffOpenFolder();}else if(ownerPage&&Memory::Read32(ownerPage+4)==0xC0){myStuffFailed=!DVDMyStuffSwitch(selectedMyStuff);Configure(ctx,activePage);}else Bottom(ctx,MyStuffDetail());}else if(sheet==7){if(row==0)PcTexturePacks::SetEnabled(ctx->gpr[6]!=0);else if(row==1)PcTexturePacks::Reload();else if(row==2)PcTexturePacks::OpenFolder();Configure(ctx,activePage);}else if(sheet==5){if(row==0&&selectedRoom<roomIds.size()){pendingRoomId=roomIds[selectedRoom];RT_LOGF("pc-ui-test","Public room selected in native menu\n");Close(ctx,activePage);}}else if(sheet==4){if(row==0){PcOnlineRooms::RefreshUpdates();Bottom(ctx,UpdateDetail());}}else if(sheet==3&&row<4){const bool assigned=selectedController<visibleControllerIds.size()&&settings_overlay::PcControllerAssign(row,visibleControllerIds[selectedController],ctx->gpr[6]!=0);Configure(ctx,activePage);if(!assigned)Bottom(ctx,T(u"Mando desconectado. Elige otro dispositivo.",u"Controller disconnected. Choose another device.",u"Manette déconnectée. Choisissez un appareil.",u"Controller getrennt. Anderes Gerät wählen.",u"Controller scollegato. Scegli un altro dispositivo."));}else if(row<5&&sheet<3)settings_overlay::SetPcGraphicsValue(sheet,row,ctx->gpr[6]);}
 REGISTER_NATIVE_WRAPPER_AS(0x80853714,PcRadioClick,"PcOriginalUI_GraphicsChoice");
-extern "C" void PcRadioSelect(CpuContext* ctx){if(ctx->gpr[3]!=activePage){MKW_GUEST_NEXT(8085389C)(ctx);return;}const auto row=Memory::Read32(ctx->gpr[4]+0x20C);Bottom(ctx,sheet==3&&row<4?settings_overlay::PcControllerPlayerName(row):sheet==4?UpdateDetail():T(u"Izquierda/derecha y A: elegir. B: volver.",u"Left/right and A: select. B: back.",u"Gauche/droite et A : choisir. B : retour.",u"Links/rechts und A: wählen. B: zurück.",u"Sinistra/destra e A: scegli. B: indietro."));}
+extern "C" void PcRadioSelect(CpuContext* ctx){if(ctx->gpr[3]!=activePage){MKW_GUEST_NEXT(8085389C)(ctx);return;}const auto row=Memory::Read32(ctx->gpr[4]+0x20C);Bottom(ctx,sheet==9?SaveDetail():sheet==8?MyStuffDetail():sheet==3&&row<4?settings_overlay::PcControllerPlayerName(row):sheet==4?UpdateDetail():T(u"Izquierda/derecha y A: elegir. B: volver.",u"Left/right and A: select. B: back.",u"Gauche/droite et A : choisir. B : retour.",u"Links/rechts und A: wählen. B: zurück.",u"Sinistra/destra e A: scegli. B: indietro."));}
 REGISTER_NATIVE_WRAPPER_AS(0x8085389C,PcRadioSelect,"PcOriginalUI_GraphicsHint");
-extern "C" void PcScrollChange(CpuContext* ctx){if(ctx->gpr[3]!=activePage){MKW_GUEST_NEXT(80853998)(ctx);return;}if(sheet==0){settings_overlay::PcSetAspect(ctx->gpr[6]);Configure(ctx,activePage);return;}if(sheet==6){settings_overlay::SetPcGraphicsScroller(0,ctx->gpr[6]);return;}if(sheet==7)return;if(sheet==5){selectedRoom=std::min<unsigned>(ctx->gpr[6],roomValues.size()-1);return;}if(sheet==4)return;if(sheet==3){const auto devices=settings_overlay::PcControllerDevices();selectedController=std::min<unsigned>(ctx->gpr[6],devices.size()-1);Configure(ctx,activePage);}else{settings_overlay::SetPcGraphicsScroller(sheet,ctx->gpr[6]);if(sheet==1)Configure(ctx,activePage);}}
+extern "C" void PcScrollChange(CpuContext* ctx){if(ctx->gpr[3]!=activePage){MKW_GUEST_NEXT(80853998)(ctx);return;}if(sheet==9)return;if(sheet==8){selectedMyStuff=std::min<unsigned>(ctx->gpr[6],4);myStuffFailed=false;Bottom(ctx,MyStuffDetail());return;}else if(sheet==0){settings_overlay::PcSetAspect(ctx->gpr[6]);Configure(ctx,activePage);return;}if(sheet==6){settings_overlay::SetPcGraphicsScroller(0,ctx->gpr[6]);return;}if(sheet==7)return;if(sheet==5){selectedRoom=std::min<unsigned>(ctx->gpr[6],roomValues.size()-1);return;}if(sheet==4)return;if(sheet==3){const auto devices=settings_overlay::PcControllerDevices();selectedController=std::min<unsigned>(ctx->gpr[6],devices.size()-1);Configure(ctx,activePage);}else{settings_overlay::SetPcGraphicsScroller(sheet,ctx->gpr[6]);if(sheet==1)Configure(ctx,activePage);}}
 REGISTER_NATIVE_WRAPPER_AS(0x80853998,PcScrollChange,"PcOriginalUI_GraphicsScroll");
-extern "C" void PcTextChange(CpuContext* ctx){if(ctx->gpr[3]!=activePage){MKW_GUEST_NEXT(80853A10)(ctx);return;}const auto devices=settings_overlay::PcControllerDevices();const auto controllerValues=ControllerChoices(devices);const std::vector<std::u16string> updateValues{PcOnlineRooms::UpdateSummary()};const auto aspectValues=AspectChoices(),textureValues=TextureChoices();const auto& values=sheet==0?aspectValues:sheet==6?scales:sheet==7?textureValues:sheet==5?roomValues:sheet==4?updateValues:sheet==3?controllerValues:sheet==2?PcMenuLocale::Languages():sheet==1?presets:scales;auto value=std::min<unsigned>(ctx->gpr[5],values.size()-1);Text(ctx,ctx->gpr[4],51,values[value]);if(sheet==3)Bottom(ctx,devices[value]);}
+extern "C" void PcTextChange(CpuContext* ctx){if(ctx->gpr[3]!=activePage){MKW_GUEST_NEXT(80853A10)(ctx);return;}const auto devices=settings_overlay::PcControllerDevices();const auto controllerValues=ControllerChoices(devices);const std::vector<std::u16string> updateValues{PcOnlineRooms::UpdateSummary()};const auto aspectValues=AspectChoices(),textureValues=TextureChoices();const auto& values=sheet==9?SaveChoices():sheet==8?MyStuffChoices():sheet==0?aspectValues:sheet==6?scales:sheet==7?textureValues:sheet==5?roomValues:sheet==4?updateValues:sheet==3?controllerValues:sheet==2?PcMenuLocale::Languages():sheet==1?presets:scales;auto value=std::min<unsigned>(ctx->gpr[5],values.size()-1);Text(ctx,ctx->gpr[4],51,values[value]);if(sheet==3)Bottom(ctx,devices[value]);}
 REGISTER_NATIVE_WRAPPER_AS(0x80853A10,PcTextChange,"PcOriginalUI_GraphicsValueText");
 extern "C" void PcExternalSelect(CpuContext* ctx){if(ctx->gpr[3]!=activePage){MKW_GUEST_NEXT(80853684)(ctx);return;}Bottom(ctx,T(u"Ver la siguiente pagina de opciones avanzadas.",u"Open the next page of advanced options.",u"Ouvrir la page suivante des options avancées.",u"Nächste Seite der erweiterten Optionen öffnen.",u"Apri la pagina successiva delle opzioni avanzate."));}
 REGISTER_NATIVE_WRAPPER_AS(0x80853684,PcExternalSelect,"PcOriginalUI_GraphicsNextHint");
 extern "C" void PcPageUpdate(CpuContext* ctx){const auto page=ctx->gpr[3];MKW_GUEST_NEXT(80602338)(ctx);Position(page);
     if(exitPrompt&&exitClosing&&Memory::Read32(exitPrompt+8)<=1){Memory::Write32(exitPrompt+0x6C,exitOriginalBack);Memory::Write8(exitPrompt+0x8D,exitOriginalRepeat);Memory::Write8(exitPrompt+0x96,exitOriginalPointer);for(auto [control,hidden]:exitHidden)Memory::Write8(control+0x80,hidden);exitHidden.clear();exitPrompt=0;exitClosing=false;if(exitOwner)Invoke(ctx,MKW_GADDR(80602378),{exitOwner});exitOwner=0;RT_LOGF("pc-exit","Exit cancelled; returned to main menu\n");}
+    if(saveApplyPending&&!exitPrompt){saveApplyPending=false;saveFailed=!ApplySaveSwitch(ctx);if(!saveFailed)return;if(activePage)Bottom(ctx,SaveDetail());}
     if(!pendingRoomId.empty() && Memory::Read32(page+4)==0x8C && Memory::Read32(page+8)==4){
         const auto section=Section(),layers=Memory::Read32(section+0x37C);
         if(layers&&layers<=11 && Memory::Read32(section+0x354+(layers-1)*4)==page)roomSearchStarted=true;
@@ -614,7 +690,7 @@ REGISTER_NATIVE_WRAPPER_AS(0x8015E254,PcDvdOpenVisibility,"PcOriginalDvd_OpenVis
 
 extern "C" void PcMainQuitClick(CpuContext* ctx){const auto owner=ctx->gpr[3];if(extraButtons.contains(owner)&&extraButtons.at(owner).button==ctx->gpr[4])OpenExit(ctx,owner);else MKW_GUEST_NEXT(8085110C)(ctx);}
 REGISTER_NATIVE_WRAPPER_AS(0x8085110C,PcMainQuitClick,"PcOriginalUI_QuitMain");
-extern "C" void PcExitConfirmClick(CpuContext* ctx){if(ctx->gpr[3]!=exitPrompt){MKW_GUEST_NEXT(80652678)(ctx);return;}if(ctx->gpr[4]==exitPrompt+0x294){RT_LOGF("pc-exit","Exit confirmed from native menu\n");ExitForAuroraWindowClose();}CloseExit(ctx);}
+extern "C" void PcExitConfirmClick(CpuContext* ctx){if(ctx->gpr[3]!=exitPrompt){MKW_GUEST_NEXT(80652678)(ctx);return;}if(ctx->gpr[4]==exitPrompt+0x294){if(exitSwitchSave)saveApplyPending=true;else {RT_LOGF("pc-exit","Exit confirmed from native menu\n");ExitForAuroraWindowClose();}}CloseExit(ctx);}
 REGISTER_NATIVE_WRAPPER_AS(0x80652678,PcExitConfirmClick,"PcOriginalUI_QuitConfirm");
 extern "C" void PcExitBack(CpuContext* ctx){if(ctx->gpr[3]==exitPrompt){CloseExit(ctx);return;}MKW_GUEST_NEXT(808516AC)(ctx);}
 REGISTER_NATIVE_WRAPPER_AS(0x808516AC,PcExitBack,"PcOriginalUI_QuitCancel");

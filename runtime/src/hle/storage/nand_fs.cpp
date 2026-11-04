@@ -6,6 +6,7 @@
 #include "isa/big_endian.h"
 #include "hle/storage/riivolution.h"
 #include "runtime_log.h"
+#include <atomic>
 
 // ============================================================================
 // Configuration
@@ -195,6 +196,34 @@ struct RiivolutionSaveRedirect {
 
 static std::once_flag g_riivolutionSaveRedirectOnce;
 static RiivolutionSaveRedirect g_riivolutionSaveRedirect;
+static std::atomic<bool>& SeparateRetroSave(){
+    static std::atomic<bool> value{RuntimeConfigFile::Get().separateRetroSave.value_or(false)};return value;
+}
+static std::filesystem::path RetroSaveDirectory(bool separate){
+    const auto code=CurrentMkwTitleIdLo();
+    const std::string game{char(code>>24),char(code>>16),char(code>>8),char(code)};
+    return RuntimeConfigFile::ApplicationDataDirectory()/"Saves"/(separate?"RetroWFC2":"RetroWFC")/game;
+}
+
+// Guest menu code must also reload RKSYS before allowing play. This low-level
+// switch only changes future opens; existing handles keep their original path.
+extern "C" bool NANDRetroSaveSeparate(){return SeparateRetroSave().load();}
+extern "C" bool NANDRetroSaveSwitch(bool separate){
+    if(!RuntimeProduct::IsRetroRewind()||!RuntimeRiivolution::GetSaveRedirect())return false;
+    const auto saves=RuntimeConfigFile::ApplicationDataDirectory()/"Saves";
+    {
+        std::lock_guard lock(g_fdMutex);
+        for(const auto& [fd,handle]:g_fileHandles){
+            const auto relative=handle.path.lexically_normal().lexically_relative(saves.lexically_normal());
+            if(!relative.empty()&&*relative.begin()!="..")return false;
+        }
+        const auto directory=RetroSaveDirectory(separate);
+        std::error_code ec;std::filesystem::create_directories(directory,ec);if(ec)return false;
+        SeparateRetroSave().store(separate);
+    }
+    RT_LOGF("pc-save","Future save opens now use %s; guest reload required\n",separate?"RetroWFC2":"RetroWFC");
+    return true;
+}
 
 static const RiivolutionSaveRedirect& GetRiivolutionSaveRedirect() {
     // The active pack's <savegame> patch, resolved against the virtual SD root
@@ -237,9 +266,13 @@ static void CloneRiivolutionSaveIfNeeded(const std::filesystem::path& sourceHost
 
 static bool ResolveRiivolutionSaveHostPath(const std::string& absoluteWiiPath,
                                            std::filesystem::path& outHostPath) {
-    const RiivolutionSaveRedirect& redirect = GetRiivolutionSaveRedirect();
+    RiivolutionSaveRedirect redirect = GetRiivolutionSaveRedirect();
     if (!redirect.enabled) {
         return false;
+    }
+    if(RuntimeProduct::IsRetroRewind()&&SeparateRetroSave().load()){
+        redirect.hostDirectory=RetroSaveDirectory(true);
+        redirect.clone=false;
     }
 
     const std::string dataDir = CurrentNandDataDir();

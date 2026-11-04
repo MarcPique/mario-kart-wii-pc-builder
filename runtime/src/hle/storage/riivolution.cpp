@@ -369,7 +369,16 @@ std::optional<MyStuffPlan> PrepareMyStuff(unsigned mode) {
         const auto text=RiivoReadFile(path);if(!text)continue;
         const auto plan=PcMyStuff::Prepare(*text,RiivoGameId(),mode);if(!plan)continue;
         MyStuffPlan result;result.runtimeFlag=plan->runtimeFlag;
+        for(const auto& file:plan->patch.filePatches)
+            if(file.create&&!file.disc.empty())result.declaredFiles.push_back(file.disc);
         RiivoCollectMappings(plan->patch,RiivoGenericText(xmls->sdRoot),RiivoGenericText(path.parent_path()),result.files);
+        // Keep mutable user content outside replaceable GameData. The official
+        // SD-style directories remain readable; portable user files win last.
+        if(mode){
+            const auto portable=PcMyStuff::PortablePatch(plan->patch,mode);if(!portable)return std::nullopt;
+            const auto userRoot=RuntimeConfigFile::ApplicationDataDirectory();
+            RiivoCollectMappings(*portable,RiivoGenericText(userRoot),RiivoGenericText(userRoot),result.files);
+        }
         return result;
     }
     return std::nullopt;

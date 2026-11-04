@@ -17,7 +17,13 @@ int main(int argc,char** argv){
         const auto plan=PcMyStuff::Prepare(fixture,"RMCP01",mode);
         if(!plan||plan->patch.folderPatches.size()!=1||!plan->patch.savegamePatches.empty()||plan->runtimeFlag!=(mode>=3?2:1))return 3;
         if(mode>=3&&plan->patch.folderPatches[0].disc!="/sound/strm")return 4;
+        const auto portable=PcMyStuff::PortablePatch(plan->patch,mode);
+        if(!portable||portable->folderPatches[0].external!="/MyStuff/"+std::string(PcMyStuff::Family(mode)))return 7;
+        if(portable->folderPatches[0].disc!=plan->patch.folderPatches[0].disc||!portable->memoryPatches.empty())return 8;
     }
+    auto escaped=PcMyStuff::Prepare(fixture,"RMCP01",2)->patch;
+    escaped.folderPatches[0].external="/RetroRewind6/MyStuff/../outside";
+    if(PcMyStuff::PortablePatch(escaped,2)||PcMyStuff::PortablePatch(escaped,5))return 9;
     const std::string unsafe=R"(<wiidisc version="1"><id game="RMC"/><patch id="RRLoad"><savegame external="/save"/></patch></wiidisc>)";
     if(PcMyStuff::Prepare(unsafe,"RMCP01",2))return 5;
     if(argc==2){std::ifstream file(argv[1]);const std::string xml{std::istreambuf_iterator<char>(file),{}};

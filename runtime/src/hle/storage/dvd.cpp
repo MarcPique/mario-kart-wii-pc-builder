@@ -30,6 +30,9 @@ extern "C" void GxNotifyGuestRamDmaWrite(uint32_t addr, uint32_t size);
 #include <mutex>
 #include <sstream>
 #include <utility>
+#ifdef _WIN32
+#include <shellapi.h>
+#endif
 
 namespace fs = std::filesystem;
 
@@ -90,6 +93,7 @@ static std::vector<DVDFileEntry> g_extentEntries;
 static std::vector<std::string> g_myStuffUnionPaths;
 static std::vector<std::pair<std::string,bool>> g_myStuffLayout;
 static bool g_myStuffLive=false;
+static unsigned g_myStuffMode=0;
 static std::map<std::string, int32_t> g_pathToEntry;
 // Maps each published file's disc range back to its runtime entry.
 struct PublishedExtent {
@@ -625,6 +629,7 @@ struct PreparedMyStuffImage {
     uint8_t runtimeFlag=0;
     size_t changedFiles=0,newFiles=0;
     bool stableIndices=false;
+    std::vector<std::string> declaredFiles;
 };
 
 // Build a candidate entirely in host memory. Publishing it is a separate step:
@@ -654,7 +659,7 @@ static std::optional<PreparedMyStuffImage> PrepareMyStuffImage(unsigned mode) {
         }
         registrations.push_back({entry.hostPath,entry.dvdPath,entry.size,entry.discOffsetWords});
     }
-    PreparedMyStuffImage result;result.runtimeFlag=plan->runtimeFlag;
+    PreparedMyStuffImage result;result.runtimeFlag=plan->runtimeFlag;result.declaredFiles=plan->declaredFiles;
     try{result.image=DvdFstContract::BuildImage(registrations);}catch(const std::exception&){return std::nullopt;}
     if(result.image.bytes.size()>g_dvdFstReservedSize)return std::nullopt;
     const auto layoutSize=g_myStuffLayout.empty()?g_myStuffBaseEntries.size():g_myStuffLayout.size();
@@ -677,6 +682,9 @@ static bool PrepareMyStuffUnionLayout(){
     std::vector<std::string> discovered;
     for(unsigned mode=1;mode<=4;++mode){
         const auto candidate=PrepareMyStuffImage(mode);if(!candidate)return false;
+        // Reserve named music replacements even when absent at boot, so adding
+        // title/offline/wifi music later does not shift cached DVD indices.
+        discovered.insert(discovered.end(),candidate->declaredFiles.begin(),candidate->declaredFiles.end());
         for(const auto& entry:candidate->image.entries)
             if(!entry.isDirectory&&!g_pathToEntry.contains(NormalizePath(entry.dvdPath)))discovered.push_back(entry.dvdPath);
     }
@@ -726,6 +734,31 @@ static bool PublishMyStuffImage(PreparedMyStuffImage candidate){
 extern "C" bool DVDMyStuffSwitchForTest(unsigned mode){
     if(!std::getenv("MKW_PC_MY_STUFF_LIVE_TEST")||!g_myStuffLive)return false;
     const auto candidate=PrepareMyStuffImage(mode);return candidate&&PublishMyStuffImage(*candidate);
+}
+
+extern "C" unsigned DVDMyStuffMode(){return g_myStuffMode;}
+extern "C" bool DVDMyStuffAvailable(){return g_myStuffLive;}
+extern "C" bool DVDMyStuffOpenFolder(){
+    const auto root=RuntimeConfigFile::ApplicationDataDirectory()/"MyStuff";
+    std::error_code ec;fs::create_directories(root/"CTGP",ec);if(ec)return false;
+    fs::create_directories(root/"RetroRewind",ec);if(ec)return false;
+#ifdef _WIN32
+    return reinterpret_cast<intptr_t>(ShellExecuteW(nullptr,L"open",root.c_str(),nullptr,nullptr,SW_SHOWNORMAL))>32;
+#else
+    return false;
+#endif
+}
+extern "C" bool DVDMyStuffSwitch(unsigned mode){
+    if(mode>4||!g_myStuffLive)return false;
+    try{
+        const auto candidate=PrepareMyStuffImage(mode);
+        if(!candidate||!PublishMyStuffImage(*candidate))return false;
+        g_myStuffMode=mode;
+        if(RuntimeConfigFile::WriteSetting("retro","my_stuff",std::to_string(mode)))RuntimeConfigFile::Mutable().myStuffMode=mode;
+        else RT_LOGF("pc-my-stuff","Mode applied but preferences could not be saved\n");
+        RT_LOGF("pc-my-stuff","Applied mode %u: %zu replaced, %zu added; existing handles retained\n",mode,candidate->changedFiles,candidate->newFiles);
+        return true;
+    }catch(const std::exception& e){RT_LOGF("pc-my-stuff","Switch rejected: %s\n",e.what());return false;}
 }
 
 static fs::path ResolveDvdMappedHostPath(const std::string& dvdPath, const fs::path& fallbackHostPath) {
@@ -978,10 +1011,12 @@ extern "C" void DVDInit_8015EA1C()
     LoadFstIndex();
     BuildAndPublishRuntimeFst();
     g_myStuffBaseEntries=g_fileEntries;
-    if(std::getenv("MKW_PC_MY_STUFF_LIVE_TEST")){
+    if(RuntimeProduct::IsRetroRewind()){
         if(PrepareMyStuffUnionLayout()){
-            const auto disabled=PrepareMyStuffImage(0);
-            RT_LOGF("pc-my-stuff-test","initial common layout published: %u\n",disabled&&PublishMyStuffImage(*disabled)?1:0);
+            const auto configured=RuntimeConfigFile::Get().myStuffMode.value_or(0);
+            const auto initial=PrepareMyStuffImage(configured);
+            if(initial&&PublishMyStuffImage(*initial))g_myStuffMode=configured;
+            RT_LOGF("pc-my-stuff","Common file layout: %s; initial mode %u\n",g_myStuffLive?"ready":"unavailable",g_myStuffMode);
         }
     }
     if(std::getenv("MKW_PC_MY_STUFF_PLAN_TEST")){

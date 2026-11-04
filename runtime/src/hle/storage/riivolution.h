@@ -57,7 +57,7 @@ const std::vector<Overlay>& Overlays();
 // /title/<id>/data directory is redirected there).
 const std::optional<SaveRedirect>& GetSaveRedirect();
 
-struct MyStuffPlan {PatchSet files;uint8_t runtimeFlag=0;};
+struct MyStuffPlan {PatchSet files;uint8_t runtimeFlag=0;std::vector<std::string> declaredFiles;};
 // Prepare mappings without changing the current DVD table or save redirect.
 std::optional<MyStuffPlan> PrepareMyStuff(unsigned mode);
 

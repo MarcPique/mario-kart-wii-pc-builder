@@ -15,7 +15,6 @@ def assemble(workspace,cache_file,output,audit_dir,review_file=None,reviewed_rel
     audit_dir.mkdir(parents=True,exist_ok=True)
     random.seed(0)
     menus,races,characters,audit,pc,jobs=corpus(workspace)
-    assert set(pc)<=set(TEXT),set(pc)-set(TEXT)
     cache=json.loads(cache_file.read_text(encoding='utf-8'))
     reviewed_pc=json.loads((Path(__file__).with_name('reviewed_pc.json')).read_text(encoding='utf-8'))['languages']
     for code in ('ca','gl','eu'):

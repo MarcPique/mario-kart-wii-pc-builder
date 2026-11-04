@@ -1,4 +1,4 @@
-import unittest,tempfile,zipfile,sys,struct,argparse
+import unittest,tempfile,zipfile,sys,struct,argparse,os
 from pathlib import Path
 ROOT=Path(__file__).resolve().parents[1]
 sys.path.insert(0,str(ROOT/'worker'))
@@ -6,6 +6,19 @@ import build_game
 from prepare_original_ui import pack,read
 
 class BuilderTests(unittest.TestCase):
+    def test_source_update_invalidates_newer_cached_object_only_on_content_change(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root=Path(folder);payload=root/'payload';source=payload/'patches/runtime/src/example.cpp';source.parent.mkdir(parents=True)
+            work=root/'work';target=work/'Install/BuildWorkspace/runtime/src/example.cpp';target.parent.mkdir(parents=True)
+            source.write_text('replacement');target.write_text('old source')
+            os.utime(source,(1000,1000));os.utime(target,(2000,2000))
+            build_game.apply_sources(work,payload)
+            self.assertEqual(target.read_text(),'replacement')
+            self.assertGreater(target.stat().st_mtime,2000)
+            timestamp=target.stat().st_mtime_ns
+            build_game.apply_sources(work,payload)
+            self.assertEqual(target.stat().st_mtime_ns,timestamp)
+
     def test_archive_round_trip(self):
         with tempfile.TemporaryDirectory() as folder:
             path=Path(folder)/'example.szs';files={'bg/ctrl/test.brctr':b'local mock resource','message/own.txt':'Español'.encode()}
