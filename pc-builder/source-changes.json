@@ -30,5 +30,7 @@
   "runtime/src/hle/storage/riivolution.h",
   "runtime/include/pc_menu_locale.h",
   "runtime/include/pc_live_locale.h",
+  "runtime/include/pc_locale_bank.h",
+  "runtime/include/pc_locale_catalog.h",
   "runtime/cmake/PublicProducts.cmake"
 ]

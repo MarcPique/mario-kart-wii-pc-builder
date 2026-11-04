@@ -96,7 +96,9 @@ std::vector<std::u16string> ControllerChoices(const std::vector<std::u16string>&
     for(size_t i=1;i<result.size();++i){const auto& name=devices[i];
         if(name.find(u"DualSense")!=std::u16string::npos)result[i]=u"DualSense";
         else if(name.find(u"DualShock")!=std::u16string::npos||name.find(u"PS4")!=std::u16string::npos)result[i]=u"DualShock";
-        else if(name.find(u"Switch")!=std::u16string::npos)result[i]=u"Switch Pro";
+        else if(name.find(u"Joy-Con")!=std::u16string::npos)result[i]=u"Joy-Con";
+        else if(name.find(u"Switch Pro")!=std::u16string::npos||name.find(u"Nintendo Switch Pro")!=std::u16string::npos)result[i]=u"Switch Pro";
+        else if(name.find(u"Switch")!=std::u16string::npos)result[i]=u"Switch";
         else if(name.find(u"Xbox")!=std::u16string::npos||name.find(u"XInput")!=std::u16string::npos)result[i]=u"Xbox";
     }
     const auto families=result;
@@ -200,7 +202,7 @@ void Configure(CpuContext* ctx,uint32_t page) {
     }
     const std::vector<std::u16string> updateValues{PcOnlineRooms::UpdateSummary()};
     const auto controllerValues=ControllerChoices(devices);
-    const auto scroller=page+0x13BC;const auto& values=sheet==5?roomValues:sheet==4?updateValues:sheet==3?controllerValues:sheet==2?PcMenuLocale::Languages:sheet==1?presets:scales;
+    const auto scroller=page+0x13BC;const auto& values=sheet==5?roomValues:sheet==4?updateValues:sheet==3?controllerValues:sheet==2?PcMenuLocale::Languages():sheet==1?presets:scales;
     const auto position=sheet==5?selectedRoom:sheet==4?0u:sheet==3?selectedController:settings_overlay::PcGraphicsScroller(sheet);
     Invoke(ctx,MKW_GADDR(8063F0C0),{scroller,static_cast<uint32_t>(values.size()),position});
     Text(ctx,scroller,50,sheet==5?RoomsTitle():sheet==4?T(u"Version",u"Version",u"Version",u"Version",u"Versione"):sheet==3?T(u"Dispositivo",u"Device",u"Appareil",u"Gerät",u"Dispositivo"):sheet==2?PcMenuLocale::Language():sheet==1?T(u"Calidad",u"Quality",u"Qualité",u"Qualität",u"Qualità"):T(u"Resolucion interna",u"Internal Resolution",u"Résolution interne",u"Interne Auflösung",u"Risoluzione interna"));
@@ -212,6 +214,7 @@ void Configure(CpuContext* ctx,uint32_t page) {
     if(sheet==4)visibleUpdateState=UpdateStateKey();
     Bottom(ctx,sheet==5?T(u"Elige una sala publica. B: volver.",u"Choose a public room. B: back.",u"Choisissez une salle. B : retour.",u"Raum wählen. B: zurück.",u"Scegli una stanza. B: indietro."):sheet==4?UpdateDetail():sheet==3?T(u"Elige un dispositivo y asignalo a un jugador.",u"Choose a device and assign it to a player.",u"Choisissez un appareil et un joueur.",u"Gerät und Spieler auswählen.",u"Scegli dispositivo e giocatore."):sheet==2?T(u"El idioma cambia inmediatamente. Guardado automatico.",u"Language changes immediately. Saved automatically.",u"Changement de langue immédiat. Sauvegarde auto.",u"Sprache wird sofort geändert. Automatisch gespeichert.",u"La lingua cambia subito. Salvataggio automatico."):T(u"Guardado automatico. B: volver.",u"Saved automatically. B: back.",u"Sauvegarde auto. B : retour.",u"Automatisch gespeichert. B: zurück.",u"Salvataggio automatico. B: indietro."));
     if(sheet==3)Bottom(ctx,devices[selectedController]);
+    if(sheet==2&&PcLocaleCatalog::AutomaticTranslation(PcMenuLocale::Current()))Bottom(ctx,T(u"Traduccion automatica (beta). El idioma cambia al instante.",u"Automatic translation (beta). Language changes immediately.",u"Traduction automatique (bêta). Changement immédiat.",u"Automatische Übersetzung (Beta). Sofortiger Sprachwechsel.",u"Traduzione automatica (beta). Cambio lingua immediato."));
 }
 void Open(CpuContext* ctx,uint32_t owner,bool rooms=false) {
     if(activePage)return;ownerPage=owner;sheet=rooms?5:0;closingPc=false;if(rooms){selectedRoom=0;RefreshRoomChoices();PcOnlineRooms::Refresh();}
@@ -358,7 +361,7 @@ extern "C" void PcRadioSelect(CpuContext* ctx){if(ctx->gpr[3]!=activePage){MKW_G
 REGISTER_NATIVE_WRAPPER_AS(0x8085389C,PcRadioSelect,"PcOriginalUI_GraphicsHint");
 extern "C" void PcScrollChange(CpuContext* ctx){if(ctx->gpr[3]!=activePage){MKW_GUEST_NEXT(80853998)(ctx);return;}if(sheet==5){selectedRoom=std::min<unsigned>(ctx->gpr[6],roomValues.size()-1);return;}if(sheet==4)return;if(sheet==3){const auto devices=settings_overlay::PcControllerDevices();selectedController=std::min<unsigned>(ctx->gpr[6],devices.size()-1);Configure(ctx,activePage);}else{settings_overlay::SetPcGraphicsScroller(sheet,ctx->gpr[6]);if(sheet==1)Configure(ctx,activePage);}}
 REGISTER_NATIVE_WRAPPER_AS(0x80853998,PcScrollChange,"PcOriginalUI_GraphicsScroll");
-extern "C" void PcTextChange(CpuContext* ctx){if(ctx->gpr[3]!=activePage){MKW_GUEST_NEXT(80853A10)(ctx);return;}const auto devices=settings_overlay::PcControllerDevices();const auto controllerValues=ControllerChoices(devices);const std::vector<std::u16string> updateValues{PcOnlineRooms::UpdateSummary()};const auto& values=sheet==5?roomValues:sheet==4?updateValues:sheet==3?controllerValues:sheet==2?PcMenuLocale::Languages:sheet==1?presets:scales;auto value=std::min<unsigned>(ctx->gpr[5],values.size()-1);Text(ctx,ctx->gpr[4],51,values[value]);if(sheet==3)Bottom(ctx,devices[value]);}
+extern "C" void PcTextChange(CpuContext* ctx){if(ctx->gpr[3]!=activePage){MKW_GUEST_NEXT(80853A10)(ctx);return;}const auto devices=settings_overlay::PcControllerDevices();const auto controllerValues=ControllerChoices(devices);const std::vector<std::u16string> updateValues{PcOnlineRooms::UpdateSummary()};const auto& values=sheet==5?roomValues:sheet==4?updateValues:sheet==3?controllerValues:sheet==2?PcMenuLocale::Languages():sheet==1?presets:scales;auto value=std::min<unsigned>(ctx->gpr[5],values.size()-1);Text(ctx,ctx->gpr[4],51,values[value]);if(sheet==3)Bottom(ctx,devices[value]);}
 REGISTER_NATIVE_WRAPPER_AS(0x80853A10,PcTextChange,"PcOriginalUI_GraphicsValueText");
 extern "C" void PcExternalSelect(CpuContext* ctx){if(ctx->gpr[3]!=activePage){MKW_GUEST_NEXT(80853684)(ctx);return;}Bottom(ctx,T(u"Ver la siguiente pagina de opciones avanzadas.",u"Open the next page of advanced options.",u"Ouvrir la page suivante des options avancées.",u"Nächste Seite der erweiterten Optionen öffnen.",u"Apri la pagina successiva delle opzioni avanzate."));}
 REGISTER_NATIVE_WRAPPER_AS(0x80853684,PcExternalSelect,"PcOriginalUI_GraphicsNextHint");

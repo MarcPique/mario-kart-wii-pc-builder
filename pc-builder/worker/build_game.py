@@ -240,7 +240,8 @@ def main(options):
         emit('complete','Instalación terminada. Tu juego se ha compilado localmente.',100,game_exe=report['game_exe'],desktop_exe=str(desktop) if desktop else None,log=str(log_path))
 
 if __name__=='__main__':
-    parser=argparse.ArgumentParser();parser.add_argument('--iso',required=True);parser.add_argument('--install-dir',required=True);parser.add_argument('--desktop-dir');parser.add_argument('--cache-dir');parser.add_argument('--jobs',type=int,default=4);parser.add_argument('--language',choices=['es','en','fr','de','it'],default='es');parser.add_argument('--offline',action='store_true')
+    languages=json.loads((HERE/'locales/pack.json').read_text(encoding='utf-8'))['languages']
+    parser=argparse.ArgumentParser();parser.add_argument('--iso',required=True);parser.add_argument('--install-dir',required=True);parser.add_argument('--desktop-dir');parser.add_argument('--cache-dir');parser.add_argument('--jobs',type=int,default=4);parser.add_argument('--language',choices=languages,default='es');parser.add_argument('--offline',action='store_true')
     try:main(parser.parse_args())
     except Exception as e:
         import traceback

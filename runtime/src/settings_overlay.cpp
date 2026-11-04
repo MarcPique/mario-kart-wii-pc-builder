@@ -1673,7 +1673,7 @@ unsigned PcGraphicsScroller(unsigned sheet) {
     return 0;
 }
 void SetPcGraphicsScroller(unsigned sheet,unsigned value) {
-    if(sheet==2){if(value<5){RuntimeConfigFile::Mutable().gameLanguage=PcMenuLocale::Codes[value];RuntimeConfigFile::WriteSetting("system","language","\""+PcMenuLocale::Codes[value]+"\"");PcMenuHooks::LanguageChanged();}return;}
+    if(sheet==2){if(value<PcMenuLocale::Codes().size()){RuntimeConfigFile::Mutable().gameLanguage=PcMenuLocale::Codes()[value];RuntimeConfigFile::WriteSetting("system","language","\""+PcMenuLocale::Codes()[value]+"\"");PcMenuHooks::LanguageChanged();}return;}
     if(sheet){if(value<5)PcApplyPreset(value);}
     else if(value<kResolutions.size()){SetResolutionScale(kResolutions[value].scale);LimitResolutionForFrameRate();PcMarkCustom();}
 }

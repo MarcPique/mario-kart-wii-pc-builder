@@ -20,6 +20,7 @@
 #include <vector>
 #include <toml.hpp>
 #include "platform/host_platform.h"
+#include "pc_locale_catalog.h"
 #ifdef _WIN32
 #ifndef WIN32_LEAN_AND_MEAN
 #define WIN32_LEAN_AND_MEAN
@@ -406,7 +407,7 @@ inline RuntimeUserConfig ParseConfigDocument(const toml::value& document) {
         }
     }
 
-    if (auto value=FindConfigValue<std::string>(document,"system","language");value&&(*value=="en"||*value=="es"||*value=="fr"||*value=="de"||*value=="it")) config.gameLanguage=*value;
+    if (auto value=FindConfigValue<std::string>(document,"system","language");value&&PcLocaleCatalog::Known(*value)) config.gameLanguage=*value;
     if (auto value=FindConfigUint(document,"video","quality_preset");value&&*value<=5)config.qualityPreset=*value;
     if (auto value = FindConfigUint(document, "video", "msaa_samples"); value && (*value == 1 || *value == 4)) config.msaaSamples = *value;
     if (auto value = FindConfigUint(document, "video", "anisotropy"); value && (*value == 1 || *value == 2 || *value == 4 || *value == 8 || *value == 16)) config.anisotropy = *value;

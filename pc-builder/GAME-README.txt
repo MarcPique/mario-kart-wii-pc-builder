@@ -10,7 +10,12 @@ También está en la pausa de las carreras locales. El botón inferior cambia de
 página: Pantalla, Calidad gráfica, Idioma, Mandos y Actualizaciones.
 En Mandos elige un dispositivo y pulsa Asignar en el jugador deseado.
 Se admiten hasta cuatro mandos para el multijugador local. No se necesita F10.
-El cambio entre español, inglés, francés, alemán e italiano es inmediato.
+Idiomas: español, inglés, francés, alemán, italiano, neerlandés, checo, finés,
+ruso, turco, español latinoamericano, catalán, gallego, euskera y andalûh EPA.
+El cambio es inmediato, utilizando solo las fuentes existentes. Catalán,
+gallego y euskera llevan asterisco: traducciones automáticas experimentales.
+Otros idiomas añadidos incluyen suplementos automáticos; andalûh transcribe
+el español. No cambian las voces ni los textos dibujados en imágenes.
 Se guarda sin reiniciar. AA y anisotropía también se aplican en vivo.
 
 Retro WFC se abre desde el menú del juego en el mismo proceso. Incluye los

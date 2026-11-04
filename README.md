@@ -20,6 +20,8 @@ Este builder genera una instalación nativa para Windows a partir de **tu propio
 
 **✅ Online habilitado mediante Retro WFC:** login, amigos y salas integrados en el propio juego, sin cerrar ni cambiar de ejecutable. Las salas se consultan al iniciar y se actualizan automáticamente cada **40 segundos**.
 
+**🌍 [Probar 1.1.0-preview.1: 15 idiomas](https://github.com/MarcPique/mario-kart-wii-pc-builder/releases/tag/v1.1.0-preview.1)** · Español, English, Français, Deutsch, Italiano, Nederlands, Čeština, Suomi, Русский, Türkçe, Español LA, Català, Galego, Euskara y Andalûh. Usa solo las fuentes existentes y cambia sin reiniciar. **Catalán, gallego y euskera tienen traducción automática experimental**, marcada en el menú; otros idiomas añadidos incluyen suplementos automáticos. Andaluh es una transcripción EPA. Las voces e imágenes no se traducen. [Procedencia, límites y generación](docs/LOCALIZATION.md). La descarga estable superior sigue siendo 1.0.2, con cinco idiomas.
+
 ## Lo que incluye
 
 | 🏁 El juego | ⚙️ Opciones de PC | 🌍 Idiomas y online |
@@ -69,6 +71,10 @@ Capturas del juego durante las pruebas locales y de la interfaz del instalador. 
 | ![Selector DualSense y modelo completo](docs/screenshots/controllers.png) | ![Mario Fire en selección](docs/screenshots/custom-character.png) |
 
 <p align="center"><img src="docs/screenshots/custom-character-race.png" width="800" alt="Mario Fire dentro de una carrera de Grand Prix local"></p>
+
+| Català experimental · preview | Galego experimental · preview |
+|---|---|
+| ![Cambio inmediato a catalán](docs/screenshots/language-catalan.png) | ![Cambio inmediato a gallego](docs/screenshots/language-galician.png) |
 
 ## Dentro del juego
 

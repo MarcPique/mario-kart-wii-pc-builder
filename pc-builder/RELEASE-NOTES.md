@@ -1,4 +1,8 @@
-## Mario Kart Wii PC Builder 1.0.2
+## Mario Kart Wii PC Builder 1.1.0-preview.1
+
+**Versión preliminar de idiomas:** español, inglés, francés, alemán, italiano, neerlandés, checo, finés, ruso, turco, español latinoamericano, catalán, gallego, euskera y andalûh (EPA). El cambio es inmediato en el mismo proceso y utiliza únicamente las fuentes ya instaladas. Japonés y coreano no se ofrecen porque faltan caracteres en esas fuentes.
+
+Catalán, gallego y euskera incluyen **traducción automática experimental** del juego, señalada con asterisco y aviso en el menú; los textos de PC y parte de la terminología se han revisado. Los otros idiomas añadidos usan textos de Retro Rewind con suplementos automáticos. Andaluh es una transcripción EPA del español. Las voces y las imágenes con texto no cambian. No se presenta como una traducción profesional ni como los parches de otros proyectos comunitarios. [Procedencia y herramientas](https://github.com/MarcPique/mario-kart-wii-pc-builder/blob/main/docs/LOCALIZATION.md).
 
 Genera tu juego de Windows a partir de tu propio disco **PAL RMCP01**. Descarga `MKWii-PC-Builder.exe`, selecciona tu ISO, WBFS o RVZ y elige la carpeta. El instalador crea el EXE del escritorio con el icono obtenido localmente de tu disco.
 
@@ -6,7 +10,7 @@ Genera tu juego de Windows a partir de tu propio disco **PAL RMCP01**. Descarga 
 - **Mandos nativos:** selector DualSense / DualShock / Switch Pro / Xbox, nombre completo en el panel inferior y selección por identidad del dispositivo. Se han probado mandos virtuales, desconexión y sustitución sin reiniciar. Otros modelos y cuatro mandos físicos simultáneos necesitan pruebas.
 - **Personajes personalizados en carreras locales:** selecciona la variante con **L/R** —**L1/R1** en DualSense— antes de confirmar. **Mario (Fire) comprobado en Grand Prix**, además del modelo de selección. Usa las variantes incluidas en Retro Rewind 6.13.4.
 - **Online integrado:** Retro WFC, login, amigos, selector de salas y refresco automático cada 40 segundos en el mismo proceso. Se ha verificado entrada a salas Retro y CT. CT 200cc no tiene ruta disponible; otros modos y cambios de anfitrión requieren pruebas.
-- **Opciones avanzadas:** menús originales en Opciones y pausa, cinco idiomas inmediatos, presets y MSAA/anisotropía sin reiniciar, probados en una GPU. Corrección del error mostrado al finalizar la instalación.
+- **Opciones avanzadas:** menús originales en Opciones y pausa, quince idiomas inmediatos, presets y MSAA/anisotropía sin reiniciar, probados en una GPU. Corrección del error mostrado al finalizar la instalación.
 
 **Límites actuales:** cuatro jugadores en multijugador local y **dos jugadores locales por PC en Retro WFC**. El protocolo de selección y los paquetes de carrera reservan dos jugadores por conexión; este release no habilita cuatro jugadores online desde un solo PC. No incluye selector My Stuff, cambio de partida separada en vivo ni actualización del código durante una sesión. La preparación experimental de My Stuff queda desactivada en los arranques normales.
 

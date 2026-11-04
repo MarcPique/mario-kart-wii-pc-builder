@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.1.0-preview.1 — 2026-11-04
+
+- Expand immediate language switching from five to fifteen locales: Spanish, English, French, German, Italian, Dutch, Czech, Finnish, Russian, Turkish, Latin American Spanish, Catalan, Galician, Basque and Andaluh (EPA).
+- Reuse existing game fonts only, validating every required visible codepoint during generation and installation. Japanese and Korean are excluded because those fonts lack part of their message-bank coverage.
+- Use bundled Retro Rewind translations where available. Catalan/Galician/Basque game text is experimental automatic translation, identified in the native language menu; additional locales include automatic supplements. Andaluh is generated from Spanish with Andalugeeks' EPA transcriber. Artwork and audio are unchanged.
+- Ship a hash-checked BPS localization patch, PC-label catalog and maintainer generation sources; reconstruct the complete message bank locally from the user's disc and downloaded mod. Add dynamic bank descriptors while accepting the previous five-language format.
+- Preserve BMG button/variable commands, validate offsets/checksums/terminators, and test language-list agreement across the installer, runtime and patch metadata.
+- Distinguish Joy-Con, Switch Pro and other Switch family device names in the native assignment selector. Controller behavior and online limits from 1.0.2 remain applicable.
+
 ## 1.0.2 — 2026-11-04
 
 - Automatically place connected gamepads on players 1–4 at startup and on connection changes, ahead of the keyboard. Preserve their relative player order and compact holes on removal. Manual assignments apply until the next roster change or launch; the keyboard controls player 1 when no gamepad is connected.
