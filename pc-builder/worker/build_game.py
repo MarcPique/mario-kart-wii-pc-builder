@@ -201,7 +201,9 @@ def main(options):
     stage_only=getattr(options,'stage_update',False)
     if (dest/staged_update.JOURNAL).exists():
         if not (dest/'.mkwii-builder/.mkwii-builder-workspace').is_file():raise ValueError('Recuperación fuera de un workspace del builder')
-        with staged_update.build_lock(dest/'.mkwii-builder'):staged_update.recover(dest)
+        with staged_update.build_lock(dest/'.mkwii-builder'):
+            staged_update.assert_native_idle(dest)
+            staged_update.recover(dest)
     if (dest/'GameData').exists() and not (dest/'mkwii-pc-install.json').exists():raise ValueError('El destino contiene otra instalación. Selecciona una carpeta nueva.')
     if (dest/staged_update.CANDIDATE).exists():raise ValueError('Hay una actualización preparada. Aplícala antes de compilar otra.')
     if stage_only:

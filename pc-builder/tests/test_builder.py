@@ -1,4 +1,5 @@
 import unittest,tempfile,zipfile,sys,struct,argparse,os,subprocess
+from unittest.mock import patch
 from pathlib import Path
 ROOT=Path(__file__).resolve().parents[1]
 sys.path.insert(0,str(ROOT/'worker'))
@@ -6,6 +7,16 @@ import build_game
 from prepare_original_ui import pack,read
 
 class BuilderTests(unittest.TestCase):
+    def test_recovery_refuses_a_running_game_before_moving_any_installation_data(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root=Path(folder);image=root/'own.iso';image.write_bytes(b'fixture')
+            dest=root/'game';work=dest/'.mkwii-builder';work.mkdir(parents=True)
+            (work/'.mkwii-builder-workspace').touch();journal=dest/'mkwii-pc-update-transaction.json';journal.write_bytes(b'untouched journal')
+            with patch.object(build_game.staged_update,'assert_native_idle',side_effect=build_game.staged_update.InstallationBusyError('running game')),patch.object(build_game.staged_update,'recover') as recover:
+                with self.assertRaises(build_game.staged_update.InstallationBusyError):build_game.main(argparse.Namespace(iso=str(image),install_dir=str(dest)))
+                recover.assert_not_called()
+            self.assertEqual(journal.read_bytes(),b'untouched journal')
+
     def test_worker_imports_in_isolated_runtime(self):
         result=subprocess.run([sys.executable,'-I',str(ROOT/'worker/build_game.py'),'--help'],capture_output=True,text=True)
         self.assertEqual(result.returncode,0,result.stderr)
