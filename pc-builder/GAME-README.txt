@@ -1,5 +1,9 @@
 MARIO KART WII PC — COMPILADO DESDE TU DISCO
 
+1.1.0-preview.4: revisión de idiomas y terminología de juego y PC.
+Se conservan nombres propios, botones y variables. Catalán, gallego y euskera
+siguen siendo traducciones experimentales. El cambio de idioma es inmediato.
+
 Abre Mario Kart Wii.exe. La preparación se hace oculta y después aparece la
 presentación original. Conserva GameData y UserData junto al EXE de esta carpeta.
 El EXE del escritorio apunta a esta instalación; no contiene los datos del juego.

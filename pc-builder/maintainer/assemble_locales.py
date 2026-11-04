@@ -3,24 +3,33 @@ from pathlib import Path
 import sys,json,hashlib,unicodedata,random
 ROOT=Path(__file__).resolve().parents[2]
 sys.path.insert(0,str(ROOT/'pc-builder/worker'))
-from localization_helpers import corpus,translate_plain,TARGETS
+from localization_helpers import corpus,translate_plain,TARGETS,shared_record,PRINTF,reflow,transcribe_prose
 from locale_messages import transform_message,message_parts,visible_characters
 from extended_locales import encode,typography
 from locale_overrides import TEXT,GAME,OTHER
 from make_bps import create
 from bps_patch import apply
 
-def assemble(workspace,cache_file,output,audit_dir):
+def assemble(workspace,cache_file,output,audit_dir,review_file=None):
     import andaluh
     audit_dir.mkdir(parents=True,exist_ok=True)
     random.seed(0)
     menus,races,characters,audit,pc,jobs=corpus(workspace)
     assert set(pc)<=set(TEXT),set(pc)-set(TEXT)
     cache=json.loads(cache_file.read_text(encoding='utf-8'))
+    reviewed_pc=json.loads((Path(__file__).with_name('reviewed_pc.json')).read_text(encoding='utf-8'))['languages']
     for code in ('ca','gl','eu'):
         index=('ca','gl','eu').index(code)
         for source,values in {**TEXT,**GAME}.items():cache[code][source.strip()]=values[index].strip()
     for code,entries in OTHER.items():cache[code].update(entries)
+    reviewed={}
+    if review_file:
+        reviewed=json.loads(Path(review_file).read_text(encoding='utf-8'))
+        for code,entries in reviewed.items():
+            if code not in TARGETS:raise ValueError('Unknown reviewed language: '+code)
+            for english,text in entries.items():
+                if not isinstance(text,str) or not text.strip():raise ValueError('Empty reviewed text')
+                cache[code][english]=text
     source=encode(menus,races)
     missing=[]
     def translated_record(record,code):
@@ -33,43 +42,61 @@ def assemble(workspace,cache_file,output,audit_dir):
         for context in [menus,races]:
             target=context.setdefault(code,{})
             for ident,record in context['en'].items():
-                if code in ('ca','gl','eu') or ident not in target:target[ident]=translated_record(record,code)
+                if code in ('ca','gl','eu') or ident not in target:
+                    target[ident]=record if shared_record(context,ident) else translated_record(record,code)
 
+    import re
+    names=set()
+    for context in [menus,races]:
+        for ident,(_,data) in context['en'].items():
+            if shared_record(context,ident):
+                parts=message_parts(data)
+                if len(parts)==1 and isinstance(parts[0],str) and '\n' not in parts[0]:names.add(parts[0].strip())
+        # Original Spanish proper names remain intact in the EPA transcription.
+        for ident,(_,data) in context['es'].items():
+            if 0x2328<=ident<=0x2473:
+                parts=message_parts(data)
+                if len(parts)==1 and isinstance(parts[0],str) and '\n' not in parts[0]:names.add(parts[0].strip())
+    names.update(['Mario Kart Wii','Mario Kart','Retro Rewind','Retro WFC','Dolphin','WiiConnect24',
+                  'Nintendo','GameCube','Mii','Miis','Wii','ZIP','7z','PNG','DDS','FPS','MSAA','V-Sync'])
+    names={name for name in names if name and len(name)>=2}
     def epa(text):
         # BMG commands never enter the transcriber; retain manual line breaks.
-        return typography(unicodedata.normalize('NFC',andaluh.epa(text)),characters)
-
-    def epa_pc(text):
-        import re
-        corrections={'Resolucion':'Resolución','Vibracion':'Vibración','grafica':'gráfica',
-                     'anisotropico':'anisotrópico','nitida':'nítida','publica':'pública',
-                     'publicas':'públicas','opcion':'opción','version':'versión',
-                     'automatico':'automático','asignalo':'asígnalo','Segun':'Según'}
-        if text=='Si':text='Sí'
-        for source,target in corrections.items():text=re.sub(r'\b'+source+r'\b',target,text)
-        return epa(text)
+        # Product names, credits, formats and numerical engine classes do not
+        # become dialect words. Split by spans, not by replacement placeholders.
+        return typography(unicodedata.normalize('NFC',transcribe_prose(text,andaluh.epa,names)),characters)
 
     for context in [menus,races]:
         context['and_ES']={}
         for ident,(font,data) in context['es'].items():
-            translated=transform_message(data,epa)
+            translated=data if shared_record(context,ident) else transform_message(data,epa)
             context['and_ES'][ident]=(1 if translated!=data else font,translated)
 
     menu_output={}
+    if set(reviewed_pc)!=set(menus):raise ValueError('Reviewed PC language list does not match the bank')
     for code in menus:
+        if set(reviewed_pc[code])!=set(pc):raise ValueError('Reviewed PC catalog needs updating: '+code)
         menu_output[code]={}
         for english,values in pc.items():
-            if code in values:translated=values[code]
-            elif code=='es-419':translated=values['es']
-            elif code=='and_ES':translated=epa_pc(values['es'])
-            elif code in ('ca','gl','eu'):translated=TEXT[english][('ca','gl','eu').index(code)]
-            elif english.strip() in OTHER.get(code,{}):
-                translated=translate_plain(english,cache[code],characters)
-            else:translated=translate_plain(english,cache[code],characters)
+            translated=reviewed_pc[code][english]
             translated=typography(unicodedata.normalize('NFC',translated),characters)
             absent={ord(c) for c in translated if ord(c)>32}-characters
             if absent:missing.append({'code':code,'pc':english,'missing':[hex(c) for c in absent],'text':translated})
             menu_output[code][english]=translated
+
+    # Retro Rewind's old language-help message asks for a restart. This runtime
+    # refreshes loaded messages immediately; say so in every offered language.
+    for context in [menus,races]:
+        for code,entries in context.items():
+            if 0x295f in entries:
+                previous=entries[0x295f][1]
+                text=menu_output[code]['Language changes immediately. Saved automatically.']
+                entries[0x295f]=(1,transform_message(previous,lambda part:reflow(part,text)))
+        font,data=context['en'][0x212d]
+        context['en'][0x212d]=(font,transform_message(data,lambda text:text.replace('registered Hybridally','registered automatically')))
+        for code in ['es','es-419']:
+            font,data=context[code][0x212d]
+            context[code][0x212d]=(font,transform_message(data,lambda text:text.replace('respuesta a la\n a la solicitud','respuesta\n a la solicitud')))
 
     for context_name,context in [('menu',menus),('race',races)]:
         for code,entries in context.items():
@@ -82,17 +109,23 @@ def assemble(workspace,cache_file,output,audit_dir):
                 if code in ('ca','gl','eu','and_ES') and original:
                     commands=lambda b:[p for p in message_parts(b) if isinstance(p,bytes)]
                     assert commands(data)==commands(original[1]),(code,ident,'command mismatch')
+                    formats=lambda b:re.findall(PRINTF,''.join(p for p in message_parts(b) if isinstance(p,str)))
+                    assert formats(data)==formats(original[1]),(code,ident,'printf mismatch')
 
     (audit_dir/'font-problems.json').write_text(json.dumps(missing,ensure_ascii=False,indent=2),encoding='utf-8')
     if missing:
         print('FONT PROBLEMS',len(missing),json.dumps(missing[:12],ensure_ascii=True));raise SystemExit(1)
     target=encode(menus,races)
     metadata={'schema':1,'languages':list(menus),'machine_translated_game_text':['ca','gl','eu'],
-              'machine_supplemented':['nl','cs','fi','ru','tr','es-419'],
+              'machine_supplemented':[code for code in TARGETS if code not in ('ca','gl','eu') and jobs[code]],
               'transliteration':['and_ES'],'model':'facebook/nllb-200-distilled-600M',
               'model_revision':'f8d333a098d19b4fd9a8b18f94170487ad3f821d',
               'andaluh':'0.3.1','base_sha256':hashlib.sha256(source).hexdigest(),
-              'target_sha256':hashlib.sha256(target).hexdigest()}
+              'target_sha256':hashlib.sha256(target).hexdigest(),
+              'review_revision':1 if reviewed else 0,'translation_context':'whole BMG text spans; reflow after translation',
+              'private_review_sha256':hashlib.sha256(Path(review_file).read_bytes()).hexdigest() if review_file else None,
+              'reviewed_pc_entries':sum(map(len,menu_output.values())),
+              'reviewed_game_spans':{code:len(set(entries)&set(jobs[code])) for code,entries in reviewed.items()}}
     required=set()
     for context in [menus,races]:
         for entries in context.values():

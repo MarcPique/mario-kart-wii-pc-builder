@@ -5,7 +5,7 @@
 #include <string>
 namespace PcMenuLocale {
 inline const std::string& Current(){static const std::string fallback="en";const auto& value=RuntimeConfigFile::Get().gameLanguage;return value?*value:fallback;}
-inline std::u16string T(const char16_t* es,const char16_t* en,const char16_t* fr,const char16_t* de,const char16_t* it){const auto& l=Current();if(l=="es")return es;if(l=="fr")return fr;if(l=="de")return de;if(l=="it")return it;if(l!="en"){auto text=PcLiveLocale::MenuText(en);if(!text.empty())return text;}return en;}
+inline std::u16string T(const char16_t* es,const char16_t* en,const char16_t* fr,const char16_t* de,const char16_t* it){auto text=PcLiveLocale::MenuText(en);if(!text.empty())return text;const auto& l=Current();if(l=="es")return es;if(l=="fr")return fr;if(l=="de")return de;if(l=="it")return it;return en;}
 inline std::u16string Advanced(){return T(u"Opciones avanzadas",u"Advanced Options",u"Options avancées",u"Erweiterte Optionen",u"Opzioni avanzate");}
 inline std::u16string Display(){return T(u"Pantalla",u"Display",u"Affichage",u"Anzeige",u"Schermo");}
 inline std::u16string Quality(){return T(u"Calidad grafica",u"Graphics Quality",u"Qualité graphique",u"Grafikqualität",u"Qualità grafica");}

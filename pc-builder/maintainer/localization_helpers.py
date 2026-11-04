@@ -1,6 +1,6 @@
 """Extract translation fragments locally; callers must keep the corpus out of published artifacts."""
 from pathlib import Path
-import sys,re,json,unicodedata
+import sys,re,json,unicodedata,textwrap
 
 ROOT=Path(__file__).resolve().parents[2]
 sys.path.insert(0,str(ROOT/'pc-builder/worker'))
@@ -13,7 +13,10 @@ PRESERVED={'Mario','Luigi','Wario','Waluigi','Peach','Daisy','Rosalina','Bowser'
            'Funky Kong','Donkey Kong','Diddy Kong','Wii','Nintendo','Mii','Retro Rewind','Retro WFC',
            'CTGP','CT','RR','VR','BR','FPS','MSAA','V-Sync','Wiimmfi','Grand Prix','BGM','SD','NAND',
            'OTT','KO','VS','OK','HD','USB','Bluetooth','CPU','GPU','A','B','X','Y','L','R','Z'}
-SPLIT=re.compile(r'(\r\n|\r|\n|%[-+#0 .\d]*[sdifuxX]|\b(?:A|B|X|Y|L|R|Z|L1|R1|L2|R2):\s*)')
+PRINTF = r'%(?:\d+\$)?[-+#0 ]*(?:\d+|\*)?(?:\.(?:\d+|\*))?(?:hh|ll|[hljztL])?[diuoxXfFeEgGaAcspn%]'
+# A line break in a BMG message is layout, not a new sentence. In particular,
+# never translate a possessive suffix or half of a warning as its own sentence.
+SPLIT=re.compile(r'('+PRINTF+r'|\b(?:A|B|X|Y|L|R|Z|L1|R1|L2|R2):\s*)')
 
 
 def units(text):
@@ -22,21 +25,45 @@ def units(text):
         if i%2:
             yield False,part
             continue
-        for sentence in re.split(r'(?<=[.!?])(?=\s)',part):
-            while len(sentence)>300:
-                cut=sentence.rfind(' ',0,300)
-                if cut<80:cut=300
-                yield True,sentence[:cut]
-                sentence=sentence[cut:]
-            if sentence:yield True,sentence
+        # Whole prose spans retain context. Their size is checked by the offline
+        # tokenizer; silently splitting sentences here caused nonsensical text.
+        yield True,part
 
 
 def key(text):
-    value=text.strip()
+    value=' '.join(text.split())
     if not value or value in PRESERVED or not any(c.isalpha() for c in value):return None
     if re.fullmatch(r'\d+\s*(?:cc|FPS|Hz|p|x)',value):return None
     if '://' in value or re.fullmatch(r'[\w.]+\.(?:com|net|org|dll|exe|szs|brres)',value):return None
     return value
+
+
+def shared_record(contexts,ident):
+    """Names/credits and invariant technical labels must not be translated."""
+    source=contexts['en'][ident][1]
+    return all(contexts[code].get(ident,(0,b''))[1]==source for code in ('es','fr','de','it'))
+
+
+def reflow(source,translation):
+    """Retain a message's layout width without translating its lines separately."""
+    if '\n' not in source and '\r' not in source:return translation
+    lines=source.splitlines()
+    width=max(12,max((len(line.strip()) for line in lines),default=36))
+    return textwrap.fill(translation,width=width,break_long_words=False,break_on_hyphens=False)
+
+
+def transcribe_prose(text,transcribe,names=()):
+    """Transcribe prose while keeping identities, format strings and units exact."""
+    literals=PRESERVED|set(names)|{'Mario Kart Wii','Mario Kart','Dolphin','WiiConnect24','GameCube',
+                                  'Miis','ZIP','7z','PNG','DDS'}
+    literals={name for name in literals if len(name)>=2}
+    pattern=re.compile(r'(?<!\w)(?:'+'|'.join(re.escape(n) for n in sorted(literals,key=len,reverse=True))+
+                       r')(?=\W|$)|'+PRINTF+r'|\b\d+(?:[.,]\d+)?(?:cc|fps|Hz|p|x)\b|\b[ABXYLRZ](?=:)')
+    output=[];start=0
+    for match in pattern.finditer(text):
+        output.extend([transcribe(text[start:match.start()]),match.group()]);start=match.end()
+    output.append(transcribe(text[start:]))
+    return ''.join(output)
 
 
 def spans(message):
@@ -66,14 +93,10 @@ def corpus(workspace):
         for context in [menus,races]:
             source=context['en'];destination=context.get(code,{})
             for ident,(font,message) in source.items():
+                if shared_record(context,ident):continue
                 if code in ('ca','gl','eu') or ident not in destination:
                     jobs[code].update(spans(message))
     pc=pc_strings()
-    for code in TARGETS:
-        for english in pc:
-            for active,text in units(english):
-                value=key(text) if active else None
-                if value:jobs[code].add(value)
     return menus,races,characters,audit,pc,{code:sorted(values) for code,values in jobs.items()}
 
 
@@ -85,5 +108,6 @@ def translate_plain(text,cache,characters):
         translated=cache[lookup].strip()
         if not translated:raise ValueError('Empty translation')
         leading=part[:len(part)-len(part.lstrip())];trailing=part[len(part.rstrip()):]
-        output.append(leading+typography(unicodedata.normalize('NFC',translated),characters)+trailing)
+        translated=typography(unicodedata.normalize('NFC',translated),characters)
+        output.append(leading+reflow(part,translated)+trailing)
     return ''.join(output)

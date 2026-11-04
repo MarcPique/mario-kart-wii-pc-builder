@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.1.0-preview.4 — 2026-11-04
+
+- Review all 1,260 PC catalog entries across fifteen languages: correct technical terminology, accents, button verbs, room/status messages and missing negation. Make the native runtime use the corrected catalog for the original five languages too, retaining compiled labels as fallback.
+- Inspect 1,543 game-text spans each for Catalan, Galician and Basque, including 214 multiline contexts. Correct racing, cups, drift, team sizes, eliminations, ghost challenges, confirmations, error codes and omitted instructions. Retain the experimental-translation notice.
+- Translate complete BMG prose spans before wrapping lines; keep shared names/credits and canonical unreviewed vehicle/track names intact. Preserve wide/padded printf arguments as well as embedded button and variable commands.
+- Protect product names, file formats, units and controls in Andaluh EPA transcription. Replace the obsolete restart-language help in all fifteen languages and fix inherited friend-registration wording.
+- Audit 90,720 bank records with no missing font characters or generated command/format mismatches. Add regression checks for context, `%ls`, identities and the reviewed PC catalog. See [localization provenance and scope](docs/LOCALIZATION.md).
+
 ## 1.1.0-preview.3 — 2026-11-04
 
 - Put all sixteen aspect ratios directly in the Display page scroller. Label the three radio shortcuts Quick ratio; keep the complete internal-resolution selector on its own page.

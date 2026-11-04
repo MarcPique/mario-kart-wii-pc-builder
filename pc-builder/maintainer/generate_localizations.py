@@ -13,6 +13,7 @@ def main():
     parser.add_argument('--workspace', type=Path, required=True,
                         help='Private builder workspace containing the extracted disc and RR pack')
     parser.add_argument('--cache', type=Path, required=True, help='Private translation-cache JSON')
+    parser.add_argument('--review', type=Path, help='Private reviewed game-text overrides, applied after the automatic cache')
     parser.add_argument('--model-dir', type=Path, help='Optional local NLLB model to fill missing cache entries')
     parser.add_argument('--device', default='cuda', choices=['cuda', 'cpu'])
     parser.add_argument('--output', type=Path, required=True, help='Public patch/catalog output directory')
@@ -50,7 +51,7 @@ def main():
                 temporary.write_text(json.dumps(translations, ensure_ascii=False, indent=2), encoding='utf-8')
                 temporary.replace(args.cache)
             print(code, 'cache ready', flush=True)
-    assemble(args.workspace, args.cache, args.output, args.audit_dir)
+    assemble(args.workspace, args.cache, args.output, args.audit_dir,args.review)
 
 
 if __name__ == '__main__':

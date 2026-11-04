@@ -105,7 +105,7 @@ internal static class Program
                 using var valid = JsonDocument.Parse("{\"stage\":\"complete\"}");
                 return ProgressProtocol.TryGetStage(valid.RootElement, out var stage) && stage == "complete" ? 0 : 1;
             }
-            if (args.Contains("--version")) { Console.WriteLine("1.1.0-preview.3"); return 0; }
+            if (args.Contains("--version")) { Console.WriteLine("1.1.0-preview.4"); return 0; }
             if (Array.IndexOf(args, "--render-preview") is var preview && preview >= 0 && preview + 1 < args.Length)
             {
                 ApplicationConfiguration.Initialize(); using var form = new BuilderForm(); form.ShowInTaskbar = false; form.StartPosition = FormStartPosition.Manual; form.Location = new Point(-12000, -12000); form.Show(); Application.DoEvents();
