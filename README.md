@@ -2,7 +2,7 @@
 
 ![Mario Kart Wii PC Builder](docs/hero.svg)
 
-[![Descargar](https://img.shields.io/github/v/release/MarcPique/mario-kart-wii-pc-builder?style=for-the-badge&label=DESCARGAR&color=009bd7)](https://github.com/MarcPique/mario-kart-wii-pc-builder/releases/latest)
+[![Descargar preview 3](https://img.shields.io/badge/Descargar-1.1.0--preview.3-009bd7?style=for-the-badge)](https://github.com/MarcPique/mario-kart-wii-pc-builder/releases/download/v1.1.0-preview.3/MKWii-PC-Builder.exe)
 ![Windows x64](https://img.shields.io/badge/Windows-x64-1478c8?style=for-the-badge&logo=windows)
 ![Tu disco](https://img.shields.io/badge/ISO-local-343c4a?style=for-the-badge)
 [![Online habilitado](https://img.shields.io/badge/Online-HABILITADO%20%C2%B7%20Retro%20WFC-27ae60?style=for-the-badge)](#online-habilitado)
@@ -12,7 +12,9 @@
 
 **Selecciona tu imagen PAL → compila en tu PC → abre Mario Kart Wii.exe desde el escritorio.**
 
-**[⬇ Descargar el instalador para Windows](https://github.com/MarcPique/mario-kart-wii-pc-builder/releases/latest/download/MKWii-PC-Builder.exe)** · [Capturas](#capturas) · [Instalación](#instalación) · [Cambios](CHANGELOG.md)
+**[⬇ Descargar para Windows · 1.1.0-preview.3](https://github.com/MarcPique/mario-kart-wii-pc-builder/releases/download/v1.1.0-preview.3/MKWii-PC-Builder.exe)**
+
+[Capturas](#capturas) · [Instalación](#instalación) · [Idiomas](#15-idiomas-sin-reiniciar) · [Online](#online-habilitado) · [Texturas](#paquetes-de-texturas-de-dolphin) · [Cambios](CHANGELOG.md)
 
 </div>
 
@@ -20,38 +22,74 @@ Este builder genera una instalación nativa para Windows a partir de **tu propio
 
 **✅ Online habilitado mediante Retro WFC:** login, amigos y salas integrados en el propio juego, sin cerrar ni cambiar de ejecutable. Las salas se consultan al iniciar y se actualizan automáticamente cada **40 segundos**.
 
-**🌍 [Probar 1.1.0-preview.3: 15 idiomas](https://github.com/MarcPique/mario-kart-wii-pc-builder/releases/tag/v1.1.0-preview.3)** · Español, English, Français, Deutsch, Italiano, Nederlands, Čeština, Suomi, Русский, Türkçe, Español LA, Català, Galego, Euskara y Andalûh. Usa solo las fuentes existentes y cambia sin reiniciar. **Catalán, gallego y euskera tienen traducción automática experimental**, marcada en el menú; otros idiomas añadidos incluyen suplementos automáticos. Andaluh es una transcripción EPA. Las voces e imágenes no se traducen. [Procedencia, límites y generación](docs/LOCALIZATION.md). La descarga estable superior sigue siendo 1.0.2, con cinco idiomas.
+> **La descarga destacada es una versión preliminar con todas las novedades descritas aquí.** [Notas y SHA-256 de preview 3](https://github.com/MarcPique/mario-kart-wii-pc-builder/releases/tag/v1.1.0-preview.3). La [estable 1.0.2](https://github.com/MarcPique/mario-kart-wii-pc-builder/releases/tag/v1.0.2) sigue disponible, pero no incluye las últimas novedades de idiomas, formatos y texturas.
 
 ## Lo que incluye
 
-| 🏁 El juego | ⚙️ Opciones de PC | 🌍 Idiomas y online |
-|---|---|---|
-| Ventana **Mario Kart Wii** | **Opciones avanzadas** en Opciones y pausa | Español, English, Français, Deutsch e Italiano |
-| Icono en EXE, ventana y barra de tareas | Presets, resolución, formato, V-Sync, AA y anisotropía | **Idioma inmediato**, sin reiniciar |
-| Presentación original y preparación oculta | Controles, fuentes y animaciones nativos | **Online habilitado: Retro WFC** en la misma sesión |
-| EXE de arranque en el escritorio | Sin barra flotante ni necesidad de F10 | Salas al abrir y cada **40 segundos** |
+| Función | Incluido en 1.1.0-preview.3 |
+|---|---|
+| 🏁 Presentación original | Ventana **Mario Kart Wii**, icono en EXE, ventana y barra de tareas; preparación inicial en segundo plano |
+| ⚙️ Opciones avanzadas | Integradas en **Opciones y pausa**, con controles, fuentes y animaciones nativos |
+| 🖥️ Pantalla y gráficos | Presets, resolución interna y de ventana, **16 formatos**, V-Sync, MSAA y anisotropía |
+| 🌍 Idiomas | **15 idiomas**, incluidos catalán, gallego, euskera y andalûh; cambio inmediato |
+| 🎮 Mandos | Hasta **4 jugadores locales**, asignación automática J1–J4 y reasignación desde el juego |
+| 🌐 Online habilitado | **Retro WFC**, login, amigos y selector de salas; consulta inicial y refresco cada **40 segundos** |
+| 🏎️ Retro Rewind | Circuitos adicionales y variantes de personajes utilizables también en carreras locales |
+| 🎨 Texturas de Dolphin | **PNG, DDS, ZIP y 7z**; activar, desactivar y recargar sin reiniciar; originales donde falte una textura |
+| 🚪 Salir al escritorio | Botón en el menú principal con confirmación original y **Cancelar** seleccionado inicialmente |
+| 📦 Instalación | EXE de arranque en el escritorio; actualizaciones que conservan ajustes y partidas |
 
 El icono completo se obtiene **localmente del banner de tu disco**. La integración usa Retro Rewind **6.13.4**, incluido su contenido adicional y sus cambios de jugabilidad.
 
-### Mandos, personajes y salas
+### 15 idiomas sin reiniciar
 
-La versión **1.0.2** incluye la página nativa **Mandos** y asignación a cuatro jugadores locales. Al abrir el juego o cambiar los dispositivos conectados, los mandos ocupan automáticamente **J1, J2, J3 y J4**, antes que el teclado. Se conserva su orden relativo y se rellenan los puestos libres; después puedes reasignarlos manualmente en Ajustes. El teclado controla J1 cuando no hay mando. El selector muestra la familia (**DualSense, DualShock, Switch Pro, Xbox**) y el panel inferior muestra el **nombre completo** del modelo; al recorrer las filas de jugadores también aparece su asignación completa. Se ha probado un **DualSense Edge por Bluetooth** y la conexión/desconexión de mandos virtuales. Otros modelos y cuatro mandos físicos simultáneos requieren pruebas en esos dispositivos.
+**Español · English · Français · Deutsch · Italiano · Nederlands · Čeština · Suomi · Русский · Türkçe · Español LA · Català · Galego · Euskara · Andalûh**
 
-Los **personajes personalizados incluidos en Retro Rewind también se usan en las carreras locales**: selecciona un personaje y pulsa **L/R** para elegir su variante antes de confirmar. En DualSense son **L1/R1** con la configuración predeterminada. Se ha verificado **Mario (Fire) en Grand Prix**, además del modelo de selección. Esto no añade modelos externos que no formen parte del pack instalado.
+El cambio actualiza los textos del juego, Retro Rewind y las opciones de PC **al instante**, incluidos los menús ya abiertos. Solo utiliza las fuentes existentes. Las voces y el texto integrado en imágenes no cambian.
 
-También incluye la consulta de versiones de Retro Rewind, «Todas las pistas» en ajustes recién creados y el selector de salas públicas. Se ha verificado la entrada a salas Retro y CT; otros modos y cambios de anfitrión necesitan más pruebas. **Hasta cuatro jugadores en multijugador local; hasta dos jugadores locales por PC en Retro WFC.** Cuatro jugadores online desde una sola conexión requerirían ampliar los paquetes del juego y la compatibilidad de los demás clientes; esta versión no lo implementa.
+**Catalán, gallego y euskera tienen traducción automática experimental**, señalada con asterisco y aviso en el menú; los textos de PC y parte de la terminología se han revisado. Otros idiomas añadidos combinan las traducciones de Retro Rewind con suplementos automáticos. **Andalûh es una transcripción EPA del español.** Japonés y coreano no se ofrecen porque las fuentes disponibles no cubren todos sus caracteres. [Procedencia y límites de las traducciones](docs/LOCALIZATION.md).
 
-### Pantallas, texturas y salida · preview 3
+### Pantallas y calidad gráfica
 
-La [versión 1.1.0-preview.3](https://github.com/MarcPique/mario-kart-wii-pc-builder/releases/tag/v1.1.0-preview.3) añade **Salir al escritorio** al menú principal con confirmación nativa y **Cancelar** como opción inicial. B cancela; confirmar Salir cierra el juego.
+Presets **Original Wii, Bajo, Medio, Alto, Ultra y Personalizado**. Modos ventana, sin bordes y pantalla completa; resolución interna y de ventana, V-Sync, contador FPS, bloom, MSAA 4x, anisotropía, nitidez e interpolación 60/120. También hay opciones de vibración y silencio.
 
-**16 formatos:** Automático, 4:3, 5:4, 3:2, 16:10, 16:9, 1.85:1, 2:1, 21:9, 43:18, 64:27, 32:10, 32:9, 48:9, 1:1 y 9:16. En **Opciones avanzadas → Pantalla → Formato**, Automático sigue la ventana; un formato fijo conserva las proporciones con bandas cuando corresponde. El campo de visión se adapta mediante el sistema EGG existente.
+**16 formatos:** Automático, 4:3, 5:4, 3:2, 16:10, 16:9, 1.85:1, 2:1, 21:9, 43:18 —3440×1440—, 64:27 —2560×1080—, 32:10, 32:9, 48:9, 1:1 y 9:16.
 
-**Paquetes de texturas de Dolphin:** PNG/DDS, ZIP y 7z en `UserData/Load/Textures/RMCP01` o `RMC`. Los archivos comprimidos se importan en segundo plano al abrir el juego o pulsar Recargar; no necesitas instalar 7-Zip. Activa, desactiva y recarga desde **Opciones avanzadas → Paquetes de texturas**, sin reiniciar. Las texturas ausentes o no válidas conservan las originales. No se incluyen paquetes ni se sobrescriben los archivos del disco. [Formato de carpetas y límites](docs/TEXTURE-PACKS.md).
+El selector completo está en **Opciones avanzadas → Pantalla → Formato**, en la fila inferior. Los tres botones de **Formato rápido** son accesos directos. Automático sigue la ventana; los formatos fijos mantienen las proporciones con bandas cuando corresponde. La cámara se adapta al formato. La resolución interna tiene su propia página.
+
+Formato, MSAA y anisotropía se pueden cambiar sin reiniciar. Bloom se aplica al cargar una escena. Se han recorrido los 16 formatos y probado una carrera a 32:9; las pruebas se hicieron en una GPU y en ventanas de prueba, sin certificar todos los monitores o tarjetas gráficas.
+
+### Mandos y multijugador local
+
+Al abrir el juego o conectar/desconectar dispositivos, los mandos ocupan automáticamente **J1, J2, J3 y J4**, antes que el teclado, conservando su orden relativo y rellenando puestos libres. **Sin mando, el teclado controla J1.** En **Opciones avanzadas → Mandos**, selecciona el dispositivo y pulsa **Asignar** en el jugador deseado; **Vaciar** libera su puesto. La reasignación manual se conserva hasta el siguiente cambio de dispositivos o arranque.
+
+El selector reconoce familias **DualSense, DualShock, Xbox, Switch Pro, Joy-Con y mandos Switch genéricos**. El panel inferior muestra el **nombre completo del modelo**, y cada fila permite consultar su asignación. La identidad del dispositivo se mantiene al desconectar y volver a conectar. Se ha verificado un **DualSense Edge por Bluetooth**, además de pruebas con mandos virtuales, cuatro jugadores y conexión/desconexión en vivo. Otros modelos y cuatro mandos físicos simultáneos necesitan pruebas en esos dispositivos.
+
+### Circuitos y personajes de Retro Rewind
+
+Incluye el contenido de **Retro Rewind 6.13.4**, con circuitos adicionales y variantes de personajes. Para mostrar todos los circuitos: **Un jugador → Ajustes → Carrera → Selección de pistas → Todas las pistas**. Esta opción ya se activa al crear ajustes nuevos; los ajustes existentes se conservan.
+
+Los **personajes personalizados también se usan en las carreras locales**: selecciona un personaje y pulsa **L/R** para elegir su variante antes de confirmar —**L1/R1** en DualSense con la configuración predeterminada—. Se ha verificado **Mario (Fire) en Grand Prix**, además de la pantalla de selección. Se utilizan las variantes incluidas en el pack instalado.
+
+### Paquetes de texturas de Dolphin
+
+1. Copia tus **PNG/DDS sueltos o archivos ZIP/7z** en `UserData/Load/Textures/RMCP01/`. También se admite `RMC/` para paquetes sin región.
+2. Conserva los nombres de Dolphin **`tex1_...`** y las carpetas del paquete; pueden estar anidadas.
+3. Abre **Opciones avanzadas → Paquetes de texturas**, activa **Texturas** y pulsa **Recargar**. El botón **Carpeta → Abrir** abre la ubicación correspondiente.
+
+Los ZIP y 7z se importan **en segundo plano al arrancar o recargar**, sin reiniciar el juego ni instalar 7-Zip por separado. Se admite la estructura de paquetes de recursos de Dolphin. Los PNG/DDS sueltos tienen prioridad sobre los comprimidos. El menú muestra el estado y el número de texturas; las importaciones completas se guardan en caché.
+
+**Si falta una textura, está dañada o no es compatible, se usa la original en esa parte.** Puedes desactivar o retirar el paquete y recargar para volver a los originales. Los archivos del juego no se sobrescriben y no se incluye ni descarga ningún pack. RAR debe extraerse antes; los archivos cifrados no se importan. [Carpetas, compatibilidad y límites](docs/TEXTURE-PACKS.md).
+
+### Presentación y salida
+
+El juego conserva su presentación y menús originales. La preparación inicial se realiza en segundo plano; no aparece la pantalla de WiiCompiled. El nombre de la ventana es **Mario Kart Wii** y el icono completo se obtiene localmente del banner del disco para el EXE, la ventana y la barra de tareas.
+
+**Salir al escritorio** aparece en el menú principal con la confirmación nativa: **Cancelar** es la opción inicial, **B** vuelve al juego y confirmar **Salir** cierra la aplicación.
 
 ## Instalación
 
-1. Descarga **[MKWii-PC-Builder.exe](https://github.com/MarcPique/mario-kart-wii-pc-builder/releases/latest/download/MKWii-PC-Builder.exe)** desde Releases.
+1. Descarga **[MKWii-PC-Builder.exe · 1.1.0-preview.3](https://github.com/MarcPique/mario-kart-wii-pc-builder/releases/download/v1.1.0-preview.3/MKWii-PC-Builder.exe)** desde Releases.
 2. Selecciona tu imagen **ISO, WBFS o RVZ** de Mario Kart Wii **PAL RMCP01**.
 3. Elige la carpeta de instalación y pulsa **Compilar e instalar**.
 4. Abre **Mario Kart Wii.exe** desde el escritorio o pulsa **Abrir el juego**.
@@ -64,51 +102,49 @@ No necesitas instalar Python, .NET, Visual Studio ni Dolphin. El instalador llev
 
 ## Capturas
 
-Capturas del juego durante las pruebas locales y de la interfaz del instalador. No se incluyen perfiles ni códigos de amigo.
+Capturas reales de las pruebas locales: instalador, menús nativos y carreras. Se han seleccionado pantallas sin códigos de amigo ni datos personales.
 
 <p align="center"><img src="docs/screenshots/installer.png" width="800" alt="Elige tu disco, carpeta e idioma y compila el juego"></p>
 
-| Menú principal | Opciones avanzadas |
+| Menú original, Retro WFC y salida al escritorio | Opciones de pantalla y selector de formato |
 |---|---|
-| ![Menú principal nativo](docs/screenshots/main-menu.png) | ![Opciones de pantalla](docs/screenshots/advanced-options.png) |
-| **Menú de pausa** | **Idioma en vivo** |
-| ![Botón en la pausa](docs/screenshots/pause-menu.png) | ![Cambio inmediato a inglés](docs/screenshots/live-language.png) |
-| **Ajustes desde la carrera** | **Presentación original** |
-| ![Opciones en pausa sin superposición](docs/screenshots/pause-settings.png) | ![Pantalla de título](docs/screenshots/title.png) |
-| **Mandos y nombre completo** | **Personaje personalizado** |
-| ![Selector DualSense y modelo completo](docs/screenshots/controllers.png) | ![Mario Fire en selección](docs/screenshots/custom-character.png) |
+| ![Menú principal con Retro WFC y Salir al escritorio](docs/screenshots/main-menu-exit.png) | ![Pantalla con Formato en la fila inferior](docs/screenshots/advanced-options.png) |
+| **Opciones avanzadas en la pausa** | **Ajustes durante una carrera pausada** |
+| ![Opciones avanzadas integradas en la pausa](docs/screenshots/pause-menu.png) | ![Opciones desde una carrera sin barra flotante](docs/screenshots/pause-settings.png) |
+| **Català · traducción experimental en vivo** | **Galego · traducción experimental en vivo** |
+| ![Catalán con aviso de traducción automática beta](docs/screenshots/language-catalan.png) | ![Gallego con aviso de traducción automática beta](docs/screenshots/language-galician.png) |
+| **Asignación J1–J4 y nombre completo del mando** | **Gestión de texturas desde el juego** |
+| ![DualSense Edge con nombre completo y cuatro puestos de jugador](docs/screenshots/controllers.png) | ![Activar, recargar y abrir la carpeta de paquetes](docs/screenshots/texture-packs.png) |
+| **Personajes personalizados en la selección** | **Los mismos personajes en carreras locales** |
+| ![Mario Fire en la selección de variantes](docs/screenshots/custom-character.png) | ![Mario Fire en un Grand Prix local](docs/screenshots/custom-character-race.png) |
+| **Salir con confirmación y Cancelar inicial** | **Formato 21:9 seleccionado en vivo** |
+| ![Confirmación nativa para salir al escritorio](docs/screenshots/exit-confirmation.png) | ![Selector Formato en 21:9](docs/screenshots/aspect-ratios.png) |
 
-<p align="center"><img src="docs/screenshots/custom-character-race.png" width="800" alt="Mario Fire dentro de una carrera de Grand Prix local"></p>
-
-| Català experimental · preview | Galego experimental · preview |
-|---|---|
-| ![Cambio inmediato a catalán](docs/screenshots/language-catalan.png) | ![Cambio inmediato a gallego](docs/screenshots/language-galician.png) |
-
-<p align="center"><img src="docs/screenshots/main-menu-exit.png" width="800" alt="Salir al escritorio integrado en el menú principal original"></p>
-
-| Salir con confirmación nativa · preview 3 | Texturas de Dolphin · preview 3 |
-|---|---|
-| ![Confirmación con Cancelar seleccionado](docs/screenshots/exit-confirmation.png) | ![Activar y recargar PNG/DDS en el menú original](docs/screenshots/texture-packs.png) |
-
-<p align="center"><img src="docs/screenshots/aspect-ratios.png" width="800" alt="Los 16 formatos se recorren directamente en Pantalla; 21:9 seleccionado sin reiniciar"></p>
+**Carrera a 32:9:** Mario (Fire) en Grand Prix, en una ventana de prueba de 1920×540. La captura muestra el formato de la cámara; no utiliza un paquete de texturas HD.
 
 <p align="center"><img src="docs/screenshots/ultrawide-race.png" width="1000" alt="Mario Fire en Grand Prix a 32:9, ventana de prueba de 1920 por 540 píxeles"></p>
 
 ## Dentro del juego
 
-En la selección de carné, entra en **Opciones → Opciones avanzadas**. En una carrera local, abre la pausa y elige **Opciones avanzadas**. El botón inferior cambia entre **Pantalla**, **Calidad gráfica**, **Idioma**, **Mandos**, **Actualizaciones**, **Formato** y **Paquetes de texturas**. En Mandos elige el dispositivo y pulsa **Asignar** en el jugador deseado; **Vaciar** libera su puesto.
+En la selección de carné, entra en **Opciones → Opciones avanzadas**. Durante una carrera local, abre la pausa y elige **Opciones avanzadas**. No necesitas F10 ni una barra flotante durante el juego.
 
-Puedes cambiar resolución interna y de ventana, modo de pantalla, formato, V-Sync, FPS, bloom, MSAA 4x, anisotropía, nitidez, interpolación, vibración y silencio. Presets: **Original Wii, Bajo, Medio, Alto y Ultra**.
-
-**El idioma cambia al instante**, incluidos los textos de menús ya abiertos y el nombre del botón. AA y anisotropía también se aplican sin reiniciar; se han probado en una GPU y falta verificar otras. Bloom se aplica al cargar una escena. Las demás opciones se aplican en vivo cuando lo permite el renderizador.
+El botón grande inferior recorre **Pantalla → Calidad gráfica → Idioma → Mandos → Actualizaciones → Resolución interna → Paquetes de texturas**. El selector de los **16 formatos está en la primera página, Pantalla**, en la fila inferior **Formato**.
 
 ## Online habilitado
 
-El online viene habilitado mediante **Retro WFC**, con la integración de Retro Rewind 6.13.4. Entra en **Retro WFC** desde el menú del juego. Login, amigos y salas utilizan sus menús nativos en el mismo proceso. Se han probado el login y la creación y cierre de una sala de amigos. La disponibilidad y las normas dependen de [Retro WFC](https://rwfc.net/).
+El online viene habilitado mediante **Retro WFC**, con la integración de Retro Rewind 6.13.4. Entra en **Retro WFC** desde el menú original: login, amigos y salas utilizan sus menús nativos **en el mismo proceso, sin cerrar el juego ni abrir otro launcher**. La disponibilidad y las normas dependen de [Retro WFC](https://rwfc.net/).
 
-El contador muestra el estado de las salas y el botón **Salas** permite elegir una sala pública compatible. El juego dispone también de emparejamiento mundial y salas de amigos. Los circuitos personalizados pueden habilitarse en **Un jugador → Ajustes → Carrera → Selección de pistas → Todas las pistas**. Las variantes de personaje se cambian con L/R en la pantalla de personajes, también para jugar carreras locales.
+Las salas públicas se consultan **al iniciar el juego y cada 40 segundos**. El contador muestra su estado y el botón **Salas** permite elegir una sala compatible, con paginación y avisos si deja de estar disponible. También están disponibles el emparejamiento mundial y las salas de amigos.
 
-**Pendiente:** selector My Stuff, cambio de partida separada sin reiniciar, actualización de código durante la sesión y cuatro jugadores locales dentro del online. La comprobación de versiones avisa de una actualización, pero no reemplaza el código del juego en ejecución. La preparación experimental del sistema My Stuff permanece desactivada en los arranques normales.
+Se han verificado el login, la creación y cierre de una sala de amigos y la entrada a salas **Retro y CT**. Otros modos y cambios de anfitrión necesitan más pruebas. **Hasta cuatro jugadores locales sin conexión; hasta dos jugadores locales por PC en Retro WFC.**
+
+## Límites actuales
+
+- **Cuatro jugadores online desde un único PC no están implementados**; el protocolo actual admite dos por conexión.
+- La ruta específica para salas **CT 200cc** no está disponible.
+- No hay selector **My Stuff** ni cambio de partida separada durante la sesión. La preparación experimental de My Stuff está desactivada en los arranques normales.
+- **Actualizaciones** comprueba versiones y avisa; no reemplaza el código del juego mientras está en ejecución. No están integradas todas las funciones del launcher externo de Retro Rewind.
+- Las traducciones experimentales pueden contener errores o textos mal ajustados. Las pruebas de mandos, GPU, pantallas y paquetes no certifican todas las combinaciones de hardware y contenido.
 
 ## Archivos y partidas
 
