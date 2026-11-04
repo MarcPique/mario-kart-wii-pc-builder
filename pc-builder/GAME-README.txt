@@ -1,6 +1,7 @@
 MARIO KART WII PC — COMPILADO DESDE TU DISCO
 
-1.1.0: idiomas revisados, sin etiqueta beta ni asteriscos.
+1.2.0-dev.1: compilación de desarrollo de la integración de Retro Rewind.
+Los idiomas mantienen su estado revisado, sin etiqueta beta ni asteriscos.
 Revisión contextual de catalán, gallego y euskera y del catálogo de PC.
 Se conservan nombres propios, botones y variables. Cambio inmediato.
 
@@ -15,7 +16,7 @@ seleccionado por defecto. B también cancela.
 Opciones avanzadas: selección de carné > Opciones > Opciones avanzadas.
 También está en la pausa de las carreras locales. El botón inferior cambia de
 página: Pantalla, Calidad gráfica, Idioma, Mandos, Actualizaciones, Resolución interna
-y Paquetes de texturas.
+y Paquetes de texturas, My Stuff y Partidas.
 En Mandos elige un dispositivo y pulsa Asignar en el jugador deseado.
 Se admiten hasta cuatro mandos para el multijugador local. No se necesita F10.
 Idiomas: español, inglés, francés, alemán, italiano, neerlandés, checo, finés,
@@ -46,8 +47,15 @@ pueden reasignar en Mandos. Sin mando, el teclado controla al jugador 1.
 El selector muestra DualSense, Xbox, DualShock o Switch Pro; el panel inferior
 muestra el nombre completo del modelo y la asignación de cada jugador.
 Los demás modelos y cuatro mandos físicos simultáneos requieren más pruebas.
-My Stuff, partida separada en vivo y actualización de código sin reiniciar
-siguen pendientes. La página Actualizaciones comprueba la versión disponible.
+My Stuff permite elegir Desactivado, CTGP, Retro Rewind y sus variantes de música,
+y aplicar desde Opciones. Carpeta abre UserData/MyStuff (CTGP o RetroRewind).
+Los cambios se observan al cargar los siguientes archivos; la preparación en
+segundo plano y la recarga completa de contenido nuevo siguen en desarrollo.
+Partidas permite cambiar entre RetroWFC y RetroWFC2 con confirmación y Cancelar
+inicial; vuelve al título en el mismo proceso y recarga los carnés. Solo desde
+Opciones, con la partida inactiva. Una partida no válida conserva la anterior.
+Cuatro jugadores online mediante sesiones coordinadas y la aplicación de
+actualizaciones siguen en desarrollo. Actualizaciones comprueba la versión.
 
 Partidas: UserData/Saves/RetroWFC/RMCP y UserData/NAND.
 Ajustes: UserData/Config.toml. Diagnóstico: UserData/Logs.
