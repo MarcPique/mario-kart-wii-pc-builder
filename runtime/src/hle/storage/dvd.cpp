@@ -14,6 +14,11 @@ extern "C" void GxNotifyGuestRamDmaWrite(uint32_t addr, uint32_t size);
 #include "runtime_config.h"
 #include "runtime_log.h"
 #include "runtime_product.h"
+#include "pc_my_stuff_cache.h"
+#include <cryptopp/sha.h>
+#include <atomic>
+#include <memory>
+#include <thread>
 
 #include <cstdint>
 #include <cstdlib>
@@ -35,6 +40,8 @@ extern "C" void GxNotifyGuestRamDmaWrite(uint32_t addr, uint32_t size);
 #endif
 
 namespace fs = std::filesystem;
+static thread_local const std::atomic<bool>* g_myStuffScanCancel=nullptr;
+static void CheckMyStuffCancel(){if(g_myStuffScanCancel&&g_myStuffScanCancel->load())throw std::runtime_error("My Stuff preparation cancelled");}
 
 // ============================================================================
 // Configuration
@@ -89,7 +96,7 @@ static std::vector<DVDFileEntry> g_fileEntries;
 static std::vector<DVDFileEntry> g_myStuffBaseEntries;
 // Open DVD handles resolve through their original disc range, independently
 // of the active path table used for subsequent opens.
-static std::vector<DVDFileEntry> g_extentEntries;
+
 static std::vector<std::string> g_myStuffUnionPaths;
 static std::vector<std::pair<std::string,bool>> g_myStuffLayout;
 static bool g_myStuffLive=false;
@@ -101,7 +108,10 @@ struct PublishedExtent {
     uint64_t endBytes = 0;
     int32_t entryIndex = -1;
 };
-static std::vector<PublishedExtent> g_publishedExtents;
+struct PublishedDisc {std::vector<DVDFileEntry> entries;std::vector<PublishedExtent> extents;};
+static std::shared_ptr<const PublishedDisc> g_publishedDisc;
+static std::shared_ptr<const PublishedDisc> PublishedDvd(){return std::atomic_load_explicit(&g_publishedDisc,std::memory_order_acquire);}
+static void PublishDvd(std::shared_ptr<const PublishedDisc> disc){std::atomic_store_explicit(&g_publishedDisc,std::move(disc),std::memory_order_release);}
 static bool g_dvdInitialized = false;
 static std::vector<FstFileEntry> g_fstFiles;
 static bool g_fstLoaded = false;
@@ -367,15 +377,15 @@ static void LoadFstIndex() {
 
 }
 
-static const PublishedExtent* FindPublishedExtentForByteOffset(uint64_t offset) {
-    if (g_publishedExtents.empty()) {
+static const PublishedExtent* FindPublishedExtentForByteOffset(const PublishedDisc& disc,uint64_t offset) {
+    if (disc.extents.empty()) {
         return nullptr;
     }
 
     auto it = std::upper_bound(
-        g_publishedExtents.begin(), g_publishedExtents.end(), offset,
+        disc.extents.begin(), disc.extents.end(), offset,
         [](uint64_t value, const PublishedExtent& extent) { return value < extent.startBytes; });
-    if (it == g_publishedExtents.begin()) {
+    if (it == disc.extents.begin()) {
         return nullptr;
     }
     --it;
@@ -386,6 +396,7 @@ static const PublishedExtent* FindPublishedExtentForByteOffset(uint64_t offset) 
 }
 
 struct AbsReadResult {
+    std::shared_ptr<const PublishedDisc> owner;
     const DVDFileEntry* entry = nullptr;
     uint32_t fileOffset = 0;
     uint32_t readLength = 0;
@@ -394,13 +405,14 @@ struct AbsReadResult {
 static bool ResolveAbsRead(uint32_t offset, uint32_t length, AbsReadResult& out) {
     // The extent table is available after DVDInit publishes the FST.
     DVDInit_8015EA1C();
-    const PublishedExtent* extent = FindPublishedExtentForByteOffset(offset);
+    out.owner=PublishedDvd();if(!out.owner)return false;
+    const PublishedExtent* extent = FindPublishedExtentForByteOffset(*out.owner,offset);
     uint64_t effectiveOffset = offset;
 
     if (!extent) {
         // Accept both byte offsets and the FST's four-byte word offsets.
         const uint64_t scaledOffset = static_cast<uint64_t>(offset) * 4ull;
-        extent = FindPublishedExtentForByteOffset(scaledOffset);
+        extent = FindPublishedExtentForByteOffset(*out.owner,scaledOffset);
         if (extent) {
             effectiveOffset = scaledOffset;
         }
@@ -410,7 +422,7 @@ static bool ResolveAbsRead(uint32_t offset, uint32_t length, AbsReadResult& out)
         return false;
     }
 
-    const DVDFileEntry& entry = g_extentEntries[extent->entryIndex];
+    const DVDFileEntry& entry = out.owner->entries[extent->entryIndex];
     const uint32_t fileOffset = static_cast<uint32_t>(effectiveOffset - extent->startBytes);
     uint32_t readLength = length;
     if (readLength == 0 || fileOffset + readLength > entry.size) {
@@ -460,6 +472,7 @@ static void WalkDirectory(const fs::path& root, bool recursive, bool announceErr
     if (!recursive) {
         for (const auto& entry : fs::directory_iterator(
                  root, fs::directory_options::skip_permission_denied, ec)) {
+            CheckMyStuffCancel();
             if (ec) {
                 break;
             }
@@ -634,7 +647,16 @@ struct PreparedMyStuffImage {
 
 // Build a candidate entirely in host memory. Publishing it is a separate step:
 // existing DVD handles must retain the extents they were originally opened on.
-static std::optional<PreparedMyStuffImage> PrepareMyStuffImage(unsigned mode) {
+static PcMyStuffCache::Digest MyStuffDigest(const fs::path& path,const std::atomic<bool>* cancel){
+    CryptoPP::SHA256 hash;std::ifstream file(path,std::ios::binary);if(!file)throw std::runtime_error("Cannot read My Stuff cache file");
+    std::vector<uint8_t> bytes(256*1024);
+    while(file){if(cancel&&cancel->load())throw std::runtime_error("My Stuff preparation cancelled");file.read(reinterpret_cast<char*>(bytes.data()),bytes.size());if(file.gcount()>0)hash.Update(bytes.data(),static_cast<size_t>(file.gcount()));}
+    if(!file.eof())throw std::runtime_error("My Stuff cache hash read failed");
+    PcMyStuffCache::Digest digest;hash.Final(digest.data());return digest;
+}
+static std::optional<PreparedMyStuffImage> PrepareMyStuffImage(unsigned mode,const std::atomic<bool>* cancel=nullptr,bool snapshotFiles=true) {
+    struct ScanCancellation {const std::atomic<bool>* previous;explicit ScanCancellation(const std::atomic<bool>* value):previous(g_myStuffScanCancel){g_myStuffScanCancel=value;}~ScanCancellation(){g_myStuffScanCancel=previous;}} cancellation(cancel);
+    CheckMyStuffCancel();
     const auto plan=RuntimeRiivolution::PrepareMyStuff(mode);
     if(!plan || g_myStuffBaseEntries.empty())return std::nullopt;
     auto entries=g_myStuffBaseEntries;
@@ -646,11 +668,21 @@ static std::optional<PreparedMyStuffImage> PrepareMyStuffImage(unsigned mode) {
     // which must be hidden from DVD opens while their mode is inactive.
     for(const auto& path:g_myStuffUnionPaths)
         if(!DvdEntryExists(path,paths))RegisterFileEntry(path,{},0,entries,paths);
-    uint64_t next=0;
-    for(const auto& extent:g_publishedExtents)next=std::max(next,extent.endBytes);
+    const auto published=PublishedDvd();if(!published)return std::nullopt;
+    uint64_t next=0;std::map<std::pair<fs::path,uint32_t>,uint32_t> reusable;
+    for(const auto& extent:published->extents){next=std::max(next,extent.endBytes);const auto& old=published->entries[extent.entryIndex];reusable[{old.hostPath,old.size}]=old.discOffsetWords;}
+    std::map<fs::path,PcMyStuffCache::File> snapshots;
+    const auto cache=RuntimeConfigFile::ApplicationDataDirectory()/"Cache"/"MyStuff";
     std::vector<DvdFstContract::RegisteredFile> registrations;
     for(auto& entry:entries){
+        if(cancel&&cancel->load())throw std::runtime_error("My Stuff preparation cancelled");
         if(entry.isDirectory)continue;
+        if(snapshotFiles&&!entry.discOffsetWords&&!entry.hostPath.empty()){
+            auto found=snapshots.find(entry.hostPath);
+            if(found==snapshots.end())found=snapshots.emplace(entry.hostPath,PcMyStuffCache::Snapshot(entry.hostPath,cache,[&](const fs::path& file){return MyStuffDigest(file,cancel);},[&]{return cancel&&cancel->load();})).first;
+            entry.hostPath=found->second.path;entry.size=static_cast<uint32_t>(found->second.size);
+            if(const auto old=reusable.find({entry.hostPath,entry.size});old!=reusable.end())entry.discOffsetWords=old->second;
+        }
         if(!entry.discOffsetWords){
             next=(next+31ull)&~31ull;
             if(next/4ull>UINT32_MAX || entry.size>UINT64_C(0x400000000)-next)return std::nullopt;
@@ -679,9 +711,11 @@ static std::optional<PreparedMyStuffImage> PrepareMyStuffImage(unsigned mode) {
 }
 
 static bool PrepareMyStuffUnionLayout(){
-    std::vector<std::string> discovered;
+    std::vector<std::string> discovered{
+        "/sound/strm/title_bg.brstm","/sound/strm/offline_bg.brstm","/sound/strm/wifi_bg.brstm",
+        "/sound/strm/wifi_globe_bg.brstm","/sound/strm/wifi_lobby_bg.brstm"};
     for(unsigned mode=1;mode<=4;++mode){
-        const auto candidate=PrepareMyStuffImage(mode);if(!candidate)return false;
+        const auto candidate=PrepareMyStuffImage(mode,nullptr,false);if(!candidate)return false;
         // Reserve named music replacements even when absent at boot, so adding
         // title/offline/wifi music later does not shift cached DVD indices.
         discovered.insert(discovered.end(),candidate->declaredFiles.begin(),candidate->declaredFiles.end());
@@ -708,7 +742,8 @@ extern "C" bool DVDMyStuffEntryVisible(int32_t index){
 // the guest FST; retain every published range for handles opened previously.
 static bool PublishMyStuffImage(PreparedMyStuffImage candidate){
     if(!candidate.stableIndices||!g_dvdFstReservedBase||candidate.image.bytes.size()>g_dvdFstReservedSize||!Memory::Contains(g_dvdFstReservedBase,g_dvdFstReservedSize))return false;
-    auto versions=g_extentEntries;auto extents=g_publishedExtents;
+    const auto previous=PublishedDvd();if(!previous)return false;
+    auto versions=previous->entries;auto extents=previous->extents;
     std::vector<DVDFileEntry> active;active.reserve(candidate.image.entries.size());
     for(const auto& entry:candidate.image.entries){
         active.push_back({entry.hostPath,entry.dvdPath,entry.size,entry.discOffsetWords,entry.isDirectory});
@@ -724,15 +759,65 @@ static bool PublishMyStuffImage(PreparedMyStuffImage candidate){
         const auto index=static_cast<int32_t>(versions.size());versions.push_back(active.back());extents.push_back({start,end,index});
     }
     std::sort(extents.begin(),extents.end(),[](const auto& a,const auto& b){return a.startBytes<b.startBytes;});
+    auto published=std::make_shared<PublishedDisc>();published->entries=std::move(versions);published->extents=std::move(extents);
+    PublishDvd(std::move(published));
     for(size_t i=0;i<candidate.image.bytes.size();++i)Memory::Write8(g_dvdFstReservedBase+static_cast<uint32_t>(i),candidate.image.bytes[i]);
     Memory::Write32(0x8000003Cu,static_cast<uint32_t>(candidate.image.bytes.size()));
     Memory::Write8(0x80001200u,candidate.runtimeFlag);
-    g_fileEntries.swap(active);g_pathToEntry.swap(candidate.image.pathToEntry);g_extentEntries.swap(versions);g_publishedExtents.swap(extents);g_myStuffLive=true;
+    g_fileEntries.swap(active);g_pathToEntry.swap(candidate.image.pathToEntry);g_myStuffLive=true;
     return true;
 }
 
+struct MyStuffWork {
+    std::mutex mutex;std::thread worker;std::atomic<bool> busy{false},cancel{false};
+    bool ready=false;unsigned mode=0;std::optional<PreparedMyStuffImage> candidate;std::string failure;
+    ~MyStuffWork(){cancel.store(true);if(worker.joinable())worker.join();}
+};
+static MyStuffWork& CurrentMyStuffWork(){static MyStuffWork value;return value;}
+extern "C" bool DVDMyStuffBusy(){return CurrentMyStuffWork().busy.load();}
+extern "C" void DVDMyStuffCancel(){CurrentMyStuffWork().cancel.store(true);}
+extern "C" void DVDMyStuffStop(){
+    auto& work=CurrentMyStuffWork();work.cancel.store(true);if(work.worker.joinable())work.worker.join();
+    std::lock_guard lock(work.mutex);work.ready=false;work.candidate.reset();work.busy.store(false);
+}
+static bool CommitMyStuff(unsigned mode,const PreparedMyStuffImage& candidate){
+    const auto previous=g_myStuffMode;
+    if(!candidate.stableIndices||!RuntimeConfigFile::WriteSetting("retro","my_stuff",std::to_string(mode)))return false;
+    try{
+        if(!PublishMyStuffImage(candidate)){RuntimeConfigFile::WriteSetting("retro","my_stuff",std::to_string(previous));return false;}
+    }catch(...){RuntimeConfigFile::WriteSetting("retro","my_stuff",std::to_string(previous));throw;}
+    g_myStuffMode=mode;RuntimeConfigFile::Mutable().myStuffMode=mode;
+    RT_LOGF("pc-my-stuff","Applied mode %u: %zu replaced, %zu added; immutable versions and old handles retained\n",mode,candidate.changedFiles,candidate.newFiles);return true;
+}
+extern "C" bool DVDMyStuffRequest(unsigned mode){
+    if(mode>4||!g_myStuffLive)return false;auto& work=CurrentMyStuffWork();
+    if(work.busy.exchange(true))return false;
+    work.cancel.store(false);work.ready=false;work.mode=mode;work.failure.clear();work.candidate.reset();
+    try{work.worker=std::thread([&work,mode]{
+        std::optional<PreparedMyStuffImage> candidate;std::string failure;
+        try{candidate=PrepareMyStuffImage(mode,&work.cancel);if(!candidate)failure="My Stuff layout could not be prepared";}
+        catch(const std::exception& e){failure=e.what();}
+        std::lock_guard lock(work.mutex);work.candidate=std::move(candidate);work.failure=std::move(failure);work.ready=true;
+    });}catch(const std::exception& e){work.busy.store(false);RT_LOGF("pc-my-stuff","Cannot start preparation: %s\n",e.what());return false;}
+    RT_LOGF("pc-my-stuff","Preparing mode %u in background\n",mode);return true;
+}
+// 0 pending/idle, 1 applied, -1 rejected, -2 cancelled. Only called on the
+// guest thread; background work never writes guest RAM or native UI state.
+extern "C" int DVDMyStuffPump(bool mayApply){
+    auto& work=CurrentMyStuffWork();if(!work.busy.load())return 0;
+    std::optional<PreparedMyStuffImage> candidate;std::string failure;
+    {std::lock_guard lock(work.mutex);if(!work.ready)return 0;candidate=std::move(work.candidate);failure=std::move(work.failure);work.ready=false;}
+    if(work.worker.joinable())work.worker.join();int result=-1;
+    if(work.cancel.load()||!mayApply){result=-2;RT_LOGF("pc-my-stuff","Preparation cancelled; active files unchanged\n");}
+    else try{
+        if(candidate&&CommitMyStuff(work.mode,*candidate))result=1;
+        else RT_LOGF("pc-my-stuff","Prepared mode rejected; active files unchanged: %s\n",failure.c_str());
+    }catch(const std::exception& e){RT_LOGF("pc-my-stuff","Publication rejected: %s\n",e.what());}
+    work.busy.store(false);return result;
+}
+
 extern "C" bool DVDMyStuffSwitchForTest(unsigned mode){
-    if(!std::getenv("MKW_PC_MY_STUFF_LIVE_TEST")||!g_myStuffLive)return false;
+    if(!std::getenv("MKW_PC_MY_STUFF_LIVE_TEST")||!g_myStuffLive||DVDMyStuffBusy())return false;
     const auto candidate=PrepareMyStuffImage(mode);return candidate&&PublishMyStuffImage(*candidate);
 }
 
@@ -749,16 +834,9 @@ extern "C" bool DVDMyStuffOpenFolder(){
 #endif
 }
 extern "C" bool DVDMyStuffSwitch(unsigned mode){
-    if(mode>4||!g_myStuffLive)return false;
-    try{
-        const auto candidate=PrepareMyStuffImage(mode);
-        if(!candidate||!PublishMyStuffImage(*candidate))return false;
-        g_myStuffMode=mode;
-        if(RuntimeConfigFile::WriteSetting("retro","my_stuff",std::to_string(mode)))RuntimeConfigFile::Mutable().myStuffMode=mode;
-        else RT_LOGF("pc-my-stuff","Mode applied but preferences could not be saved\n");
-        RT_LOGF("pc-my-stuff","Applied mode %u: %zu replaced, %zu added; existing handles retained\n",mode,candidate->changedFiles,candidate->newFiles);
-        return true;
-    }catch(const std::exception& e){RT_LOGF("pc-my-stuff","Switch rejected: %s\n",e.what());return false;}
+    if(mode>4||!g_myStuffLive||DVDMyStuffBusy())return false;
+    try{const auto candidate=PrepareMyStuffImage(mode);return candidate&&CommitMyStuff(mode,*candidate);}
+    catch(const std::exception& e){RT_LOGF("pc-my-stuff","Switch rejected: %s\n",e.what());return false;}
 }
 
 static fs::path ResolveDvdMappedHostPath(const std::string& dvdPath, const fs::path& fallbackHostPath) {
@@ -844,9 +922,8 @@ static void BuildAndPublishRuntimeFst() {
     g_fileEntries = std::move(indexedEntries);
     g_pathToEntry = std::move(image.pathToEntry);
 
-    g_publishedExtents.clear();
-    g_extentEntries=g_fileEntries;
-    g_publishedExtents.reserve(g_fileEntries.size());
+    auto initialDisc=std::make_shared<PublishedDisc>();initialDisc->entries=g_fileEntries;
+    initialDisc->extents.reserve(g_fileEntries.size());
     for (size_t i = 0; i < g_fileEntries.size(); ++i) {
         const DVDFileEntry& entry = g_fileEntries[i];
         if (entry.isDirectory || entry.discOffsetWords == 0) {
@@ -855,12 +932,14 @@ static void BuildAndPublishRuntimeFst() {
         const uint64_t startBytes = static_cast<uint64_t>(entry.discOffsetWords) * 4ull;
         // Give empty files a one-byte range so their handles still resolve.
         const uint64_t endBytes = startBytes + std::max<uint32_t>(entry.size, 1u);
-        g_publishedExtents.push_back({startBytes, endBytes, static_cast<int32_t>(i)});
+        initialDisc->extents.push_back({startBytes, endBytes, static_cast<int32_t>(i)});
     }
-    std::sort(g_publishedExtents.begin(), g_publishedExtents.end(),
+    std::sort(initialDisc->extents.begin(), initialDisc->extents.end(),
               [](const PublishedExtent& a, const PublishedExtent& b) {
                   return a.startBytes < b.startBytes;
               });
+
+    PublishDvd(std::move(initialDisc));
 
     // Use the FST memory reserved before guest code can allocate over it.
     if (g_dvdFstReservedBase == 0 || image.bytes.size() > g_dvdFstReservedSize ||
@@ -1069,14 +1148,15 @@ extern "C" int32_t DVDReadPrio_8015E834(uint32_t fileInfoPtr, uint32_t bufferPtr
 
     // Treat startAddr as an FST offset, including offsets inside a file.
     const uint64_t startBytes = static_cast<uint64_t>(startWords) * 4ull;
-    const PublishedExtent* extent = FindPublishedExtentForByteOffset(startBytes);
+    const auto published=PublishedDvd();
+    const PublishedExtent* extent = published?FindPublishedExtentForByteOffset(*published,startBytes):nullptr;
     if (!extent) {
         return DvdReadFatal(fileInfoPtr, "<unresolved DVD file handle>", offset,
                             length > 0 ? static_cast<uint32_t>(length) : 0,
                             "DVD file info does not reference a published FST extent");
     }
 
-    const DVDFileEntry& entry = g_extentEntries[extent->entryIndex];
+    const DVDFileEntry& entry = published->entries[extent->entryIndex];
 
     if (offset < 0 || length < 0) {
         return DvdReadFatal(fileInfoPtr, HostPathText(entry.hostPath), offset,

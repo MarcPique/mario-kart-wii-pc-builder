@@ -40,7 +40,7 @@
   ],
   "translation_context": "whole BMG text spans; reflow after translation",
   "private_review_sha256": "5ed77ee335a2409e187411a440ec53ff472779c7f3c2c0bbbbffd2278e31b52c",
-  "reviewed_pc_entries": 1365,
+  "reviewed_pc_entries": 1380,
   "reviewed_game_spans": {
     "ca": 1543,
     "gl": 1543,
@@ -285,5 +285,5 @@
     65290,
     65306
   ],
-  "patch_sha256": "a91699186ea54e7face5caa60af95b4426f751c2b8bd34000ebd28508c17989b"
+  "patch_sha256": "1f7ff4a63622a95607d3af4823593f981dda4e9f7082aa5817bbb69ce53705ff"
 }

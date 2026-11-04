@@ -22,6 +22,10 @@ extern "C" bool DVDMyStuffEntryVisible(int32_t index);
 extern "C" unsigned DVDMyStuffMode();
 extern "C" bool DVDMyStuffAvailable();
 extern "C" bool DVDMyStuffSwitch(unsigned mode);
+extern "C" bool DVDMyStuffRequest(unsigned mode);
+extern "C" bool DVDMyStuffBusy();
+extern "C" void DVDMyStuffCancel();
+extern "C" int DVDMyStuffPump(bool mayApply);
 extern "C" bool DVDMyStuffOpenFolder();
 extern "C" bool NANDRetroSaveSwitch(bool separate);
 extern "C" bool NANDRetroSaveSeparate();
@@ -129,9 +133,11 @@ std::u16string SaveDetail(){
 std::u16string MyStuffTitle(){return u"My Stuff";}
 std::vector<std::u16string> MyStuffChoices(){
     const auto music=T(u"Musica",u"Music",u"Musique",u"Musik",u"Musica");
-    return {T(u"No",u"Off",u"Non",u"Aus",u"No"),u"CTGP",u"Retro Rewind",u"CTGP - "+music,u"Retro Rewind - "+music};
+    // Keep the music-only choice inside the original scroller's glyph area.
+    return {T(u"No",u"Off",u"Non",u"Aus",u"No"),u"CTGP",u"Retro Rewind",u"CTGP - "+music,u"RR - "+music};
 }
 std::u16string MyStuffDetail(){
+    if(DVDMyStuffBusy())return T(u"Preparando My Stuff en segundo plano...",u"Preparing My Stuff in the background...",u"Préparation de My Stuff en arrière-plan...",u"My Stuff wird im Hintergrund vorbereitet...",u"Preparazione di My Stuff in background...");
     if(ownerPage&&Memory::Read32(ownerPage+4)!=0xC0)return T(u"Vuelve a Opciones para cambiar My Stuff.",u"Return to Options to change My Stuff.",u"Retournez aux options pour changer My Stuff.",u"Zum Ändern von My Stuff zu den Optionen zurückkehren.",u"Torna alle opzioni per cambiare My Stuff.");
     if(myStuffFailed||!DVDMyStuffAvailable())return T(u"No se pudo aplicar My Stuff. Revisa los archivos y el registro.",u"Could not apply My Stuff. Check the files and log.",u"My Stuff non appliqué. Vérifiez les fichiers et le journal.",u"My Stuff nicht angewendet. Dateien und Protokoll prüfen.",u"My Stuff non applicato. Controlla file e registro.");
     return T(u"My Stuff se aplica al cargar los siguientes archivos.",u"My Stuff changes apply when files are next loaded.",u"My Stuff s'applique au prochain chargement des fichiers.",u"My Stuff gilt beim nächsten Laden der Dateien.",u"My Stuff si applica al prossimo caricamento dei file.");
@@ -303,7 +309,7 @@ void Open(CpuContext* ctx,uint32_t owner,bool rooms=false) {
     Invoke(ctx,MKW_GADDR(80622E00),{section,0x73,0});
     RT_LOGF("pc-options","Opened ORIGINAL VSSettings controls from page %u\n",Memory::Read32(owner+4));
 }
-void Close(CpuContext* ctx,uint32_t page){closingPc=true;Memory::Write32(page+0x3E8,0xFFFFFFFFu);Invoke(ctx,MKW_GADDR(8060247C),{page});}
+void Close(CpuContext* ctx,uint32_t page){if(page==activePage)DVDMyStuffCancel();closingPc=true;Memory::Write32(page+0x3E8,0xFFFFFFFFu);Invoke(ctx,MKW_GADDR(8060247C),{page});}
 bool ApplySaveSwitch(CpuContext* ctx){
     const auto mgr=Memory::Read32(MKW_GADDR(809BD748)),sectionMgr=Memory::Read32(MKW_GADDR(809C1E38));
     if(!ownerPage||Memory::Read32(ownerPage+4)!=0xC0||!mgr||!Memory::Contains(mgr,0x25008)||Memory::Read8(mgr+0x25000))return false;
@@ -419,7 +425,7 @@ void RefreshLanguage(CpuContext* ctx){
 }
 }
 namespace PcMenuHooks {void NotifyClosed() noexcept {}void LanguageChanged() noexcept {languageRefresh=true;}}
-extern "C" void PcSectionInit(CpuContext* ctx){resources.clear();extraButtons.clear();exitPrompt=exitOwner=exitBackHandler=0;exitClosing=false;exitHidden.clear();messages.clear();stockLabels.clear();recordedText.clear();textOrder=0;hiddenOwner.clear();backgroundAdded=false;activePage=ownerPage=textScratch=0;roomPage=routeNoticePage=routeNoticeFrames=0;roomPageActive=roomPageRequested=false;roomButtonStates.clear();pendingRoomId.clear();pendingRoomKey.clear();probeChosenRoomId.clear();probeKnownPeers.clear();probeMemberOffset=roomRouteStage=roomRouteFrames=0;roomSearchStarted=probeJoinedTarget=false;closingPc=false;onlineRevision=~uint64_t{0};UpdateSystemLanguage();PcLiveLocale::SetRaceContext(Invoke(ctx,MKW_GADDR(80631588),{ctx->gpr[4]})==2);MKW_GUEST_NEXT(80621E00)(ctx);}
+extern "C" void PcSectionInit(CpuContext* ctx){DVDMyStuffCancel();resources.clear();extraButtons.clear();exitPrompt=exitOwner=exitBackHandler=0;exitClosing=false;exitHidden.clear();messages.clear();stockLabels.clear();recordedText.clear();textOrder=0;hiddenOwner.clear();backgroundAdded=false;activePage=ownerPage=textScratch=0;roomPage=routeNoticePage=routeNoticeFrames=0;roomPageActive=roomPageRequested=false;roomButtonStates.clear();pendingRoomId.clear();pendingRoomKey.clear();probeChosenRoomId.clear();probeKnownPeers.clear();probeMemberOffset=roomRouteStage=roomRouteFrames=0;roomSearchStarted=probeJoinedTarget=false;closingPc=false;onlineRevision=~uint64_t{0};UpdateSystemLanguage();PcLiveLocale::SetRaceContext(Invoke(ctx,MKW_GADDR(80631588),{ctx->gpr[4]})==2);MKW_GUEST_NEXT(80621E00)(ctx);}
 REGISTER_NATIVE_WRAPPER_AS(0x80621E00,PcSectionInit,"PcOriginalUI_SectionInit");
 extern "C" void PcButtonLoad(CpuContext* ctx){const auto button=ctx->gpr[3];Resource resource{};for(unsigned i=0;i<6;++i)resource.args[i]=ctx->gpr[4+i];MKW_GUEST_NEXT(805BD518)(ctx);resources[button]=resource;}
 REGISTER_NATIVE_WRAPPER_AS(0x805BD518,PcButtonLoad,"PcOriginalUI_ResourceCapture");
@@ -481,11 +487,11 @@ extern "C" void PcOptionsClick(CpuContext* ctx){const auto p=ctx->gpr[3];if(extr
 REGISTER_NATIVE_WRAPPER_AS(0x805FD90C,PcOptionsClick,"PcOriginalUI_OptionsClick");
 extern "C" void PcSettingsActivate(CpuContext* ctx){const auto page=ctx->gpr[3];if(page!=activePage){MKW_GUEST_NEXT(8085354C)(ctx);return;}Memory::Write32(page+0x3E4,Label(1,PcMenuLocale::Display()));Invoke(ctx,MKW_GADDR(80837170),{page});Configure(ctx,page);Invoke(ctx,MKW_GADDR(80605D74),{page+0x6C4,0});}
 REGISTER_NATIVE_WRAPPER_AS(0x8085354C,PcSettingsActivate,"PcOriginalUI_GraphicsActivate");
-extern "C" void PcSettingsButton(CpuContext* ctx){if(ctx->gpr[3]!=activePage){MKW_GUEST_NEXT(80853654)(ctx);return;}if(ctx->gpr[4]==activePage+0x54){Close(ctx,activePage);return;}if(sheet==5)return;sheet=sheet==4?6:sheet==6?7:sheet==7?8:sheet==8?9:sheet==9?0:sheet+1;Configure(ctx,activePage);Invoke(ctx,MKW_GADDR(80602378),{activePage});}
+extern "C" void PcSettingsButton(CpuContext* ctx){if(ctx->gpr[3]!=activePage){MKW_GUEST_NEXT(80853654)(ctx);return;}if(ctx->gpr[4]==activePage+0x54){Close(ctx,activePage);return;}if(sheet==5)return;if(sheet==8)DVDMyStuffCancel();sheet=sheet==4?6:sheet==6?7:sheet==7?8:sheet==8?9:sheet==9?0:sheet+1;Configure(ctx,activePage);Invoke(ctx,MKW_GADDR(80602378),{activePage});}
 REGISTER_NATIVE_WRAPPER_AS(0x80853654,PcSettingsButton,"PcOriginalUI_GraphicsSheet");
 extern "C" void PcSettingsBack(CpuContext* ctx){if(ctx->gpr[3]==activePage)Close(ctx,activePage);else MKW_GUEST_NEXT(808536B4)(ctx);}
 REGISTER_NATIVE_WRAPPER_AS(0x808536B4,PcSettingsBack,"PcOriginalUI_GraphicsBack");
-extern "C" void PcRadioClick(CpuContext* ctx){if(ctx->gpr[3]!=activePage){MKW_GUEST_NEXT(80853714)(ctx);return;}auto row=Memory::Read32(ctx->gpr[4]+0x20C);if(sheet==9){if(row==0){selectedSeparateSave=ctx->gpr[6]!=0;saveFailed=false;Configure(ctx,activePage);}else if(row==1){if(ownerPage&&Memory::Read32(ownerPage+4)==0xC0&&selectedSeparateSave!=NANDRetroSaveSeparate())OpenExit(ctx,activePage,true);else Bottom(ctx,SaveDetail());}}else if(sheet==8){if(row==1){DVDMyStuffOpenFolder();}else if(ownerPage&&Memory::Read32(ownerPage+4)==0xC0){myStuffFailed=!DVDMyStuffSwitch(selectedMyStuff);Configure(ctx,activePage);}else Bottom(ctx,MyStuffDetail());}else if(sheet==7){if(row==0)PcTexturePacks::SetEnabled(ctx->gpr[6]!=0);else if(row==1)PcTexturePacks::Reload();else if(row==2)PcTexturePacks::OpenFolder();Configure(ctx,activePage);}else if(sheet==5){if(row==0&&selectedRoom<roomIds.size()){pendingRoomId=roomIds[selectedRoom];RT_LOGF("pc-ui-test","Public room selected in native menu\n");Close(ctx,activePage);}}else if(sheet==4){if(row==0){PcOnlineRooms::RefreshUpdates();Bottom(ctx,UpdateDetail());}}else if(sheet==3&&row<4){const bool assigned=selectedController<visibleControllerIds.size()&&settings_overlay::PcControllerAssign(row,visibleControllerIds[selectedController],ctx->gpr[6]!=0);Configure(ctx,activePage);if(!assigned)Bottom(ctx,T(u"Mando desconectado. Elige otro dispositivo.",u"Controller disconnected. Choose another device.",u"Manette déconnectée. Choisissez un appareil.",u"Controller getrennt. Anderes Gerät wählen.",u"Controller scollegato. Scegli un altro dispositivo."));}else if(row<5&&sheet<3)settings_overlay::SetPcGraphicsValue(sheet,row,ctx->gpr[6]);}
+extern "C" void PcRadioClick(CpuContext* ctx){if(ctx->gpr[3]!=activePage){MKW_GUEST_NEXT(80853714)(ctx);return;}auto row=Memory::Read32(ctx->gpr[4]+0x20C);if(sheet==9){if(row==0){selectedSeparateSave=ctx->gpr[6]!=0;saveFailed=false;Configure(ctx,activePage);}else if(row==1){if(ownerPage&&Memory::Read32(ownerPage+4)==0xC0&&selectedSeparateSave!=NANDRetroSaveSeparate())OpenExit(ctx,activePage,true);else Bottom(ctx,SaveDetail());}}else if(sheet==8){if(row==1){DVDMyStuffOpenFolder();}else if(ownerPage&&Memory::Read32(ownerPage+4)==0xC0){myStuffFailed=!DVDMyStuffRequest(selectedMyStuff);Configure(ctx,activePage);}else Bottom(ctx,MyStuffDetail());}else if(sheet==7){if(row==0)PcTexturePacks::SetEnabled(ctx->gpr[6]!=0);else if(row==1)PcTexturePacks::Reload();else if(row==2)PcTexturePacks::OpenFolder();Configure(ctx,activePage);}else if(sheet==5){if(row==0&&selectedRoom<roomIds.size()){pendingRoomId=roomIds[selectedRoom];RT_LOGF("pc-ui-test","Public room selected in native menu\n");Close(ctx,activePage);}}else if(sheet==4){if(row==0){PcOnlineRooms::RefreshUpdates();Bottom(ctx,UpdateDetail());}}else if(sheet==3&&row<4){const bool assigned=selectedController<visibleControllerIds.size()&&settings_overlay::PcControllerAssign(row,visibleControllerIds[selectedController],ctx->gpr[6]!=0);Configure(ctx,activePage);if(!assigned)Bottom(ctx,T(u"Mando desconectado. Elige otro dispositivo.",u"Controller disconnected. Choose another device.",u"Manette déconnectée. Choisissez un appareil.",u"Controller getrennt. Anderes Gerät wählen.",u"Controller scollegato. Scegli un altro dispositivo."));}else if(row<5&&sheet<3)settings_overlay::SetPcGraphicsValue(sheet,row,ctx->gpr[6]);}
 REGISTER_NATIVE_WRAPPER_AS(0x80853714,PcRadioClick,"PcOriginalUI_GraphicsChoice");
 extern "C" void PcRadioSelect(CpuContext* ctx){if(ctx->gpr[3]!=activePage){MKW_GUEST_NEXT(8085389C)(ctx);return;}const auto row=Memory::Read32(ctx->gpr[4]+0x20C);Bottom(ctx,sheet==9?SaveDetail():sheet==8?MyStuffDetail():sheet==3&&row<4?settings_overlay::PcControllerPlayerName(row):sheet==4?UpdateDetail():T(u"Izquierda/derecha y A: elegir. B: volver.",u"Left/right and A: select. B: back.",u"Gauche/droite et A : choisir. B : retour.",u"Links/rechts und A: wählen. B: zurück.",u"Sinistra/destra e A: scegli. B: indietro."));}
 REGISTER_NATIVE_WRAPPER_AS(0x8085389C,PcRadioSelect,"PcOriginalUI_GraphicsHint");
@@ -497,6 +503,8 @@ extern "C" void PcExternalSelect(CpuContext* ctx){if(ctx->gpr[3]!=activePage){MK
 REGISTER_NATIVE_WRAPPER_AS(0x80853684,PcExternalSelect,"PcOriginalUI_GraphicsNextHint");
 extern "C" void PcPageUpdate(CpuContext* ctx){const auto page=ctx->gpr[3];MKW_GUEST_NEXT(80602338)(ctx);Position(page);
     if(exitPrompt&&exitClosing&&Memory::Read32(exitPrompt+8)<=1){Memory::Write32(exitPrompt+0x6C,exitOriginalBack);Memory::Write8(exitPrompt+0x8D,exitOriginalRepeat);Memory::Write8(exitPrompt+0x96,exitOriginalPointer);for(auto [control,hidden]:exitHidden)Memory::Write8(control+0x80,hidden);exitHidden.clear();exitPrompt=0;exitClosing=false;if(exitOwner)Invoke(ctx,MKW_GADDR(80602378),{exitOwner});exitOwner=0;RT_LOGF("pc-exit","Exit cancelled; returned to main menu\n");}
+    const auto myStuffResult=DVDMyStuffPump(activePage&&sheet==8&&!closingPc&&ownerPage&&Memory::Read32(ownerPage+4)==0xC0);
+    if(myStuffResult&&activePage&&sheet==8&&!closingPc){myStuffFailed=myStuffResult==-1;if(myStuffResult==1)selectedMyStuff=DVDMyStuffMode();Configure(ctx,activePage);}
     if(saveApplyPending&&!exitPrompt){saveApplyPending=false;saveFailed=!ApplySaveSwitch(ctx);if(!saveFailed)return;if(activePage)Bottom(ctx,SaveDetail());}
     if(!pendingRoomId.empty() && Memory::Read32(page+4)==0x8C && Memory::Read32(page+8)==4){
         const auto section=Section(),layers=Memory::Read32(section+0x37C);

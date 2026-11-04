@@ -1,4 +1,5 @@
 #include "settings_overlay.h"
+extern "C" void DVDMyStuffStop();
 #include "pc_menu_hooks.h"
 #include "pc_online_rooms.h"
 #include "pc_graphics_settings.h"
@@ -1522,6 +1523,7 @@ void HandleEvents(const AuroraEvent* events) noexcept {
 }
 
 void ReleaseControllers() noexcept {
+    DVDMyStuffStop();
     PcOnlineRooms::Stop();
     // Aurora drives the LED white on first PADRead and never clears it, and the
     // exit paths terminate the process outright, so do it here.
