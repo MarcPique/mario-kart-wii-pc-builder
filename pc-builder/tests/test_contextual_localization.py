@@ -4,11 +4,18 @@ import json,re,sys,unittest
 
 ROOT=Path(__file__).resolve().parents[2]
 sys.path.insert(0,str(ROOT/'pc-builder/maintainer'))
-from localization_helpers import translate_plain,transcribe_prose,PRINTF,shared_record,correct_base_wording
+from localization_helpers import translate_plain,transcribe_prose,PRINTF,shared_record,correct_base_wording,validate_review_coverage
 from locale_messages import transform_message,message_parts
 
 
 class ContextualLocalizationTests(unittest.TestCase):
+    def test_reviewed_release_rejects_missing_or_empty_editorial_decisions(self):
+        jobs={code:['A','B'] for code in ('ca','gl','eu')}
+        reviewed={code:{'A':'One','B':'Two'} for code in jobs}
+        self.assertEqual(validate_review_coverage(jobs,reviewed),{'ca':2,'gl':2,'eu':2})
+        reviewed['eu']['B']=' '
+        with self.assertRaisesRegex(ValueError,'Incomplete review for eu'):validate_review_coverage(jobs,reviewed)
+        with self.assertRaisesRegex(ValueError,'No review corpus'):validate_review_coverage({},reviewed)
     def test_layout_breaks_do_not_split_sentence_context(self):
         source='A texture pack\ncould not be loaded.'
         cache={'A texture pack could not be loaded.':'No se pudo cargar el paquete de texturas.'}

@@ -6,6 +6,13 @@ PACK=ROOT/'pc-builder/worker/locales'
 
 
 class LocalePackTests(unittest.TestCase):
+    def test_public_pack_has_completed_review_status(self):
+        metadata=json.loads((PACK/'pack.json').read_text(encoding='utf-8'))
+        self.assertEqual(metadata['localization_status'],'reviewed')
+        self.assertEqual(metadata['reviewed_languages'],['ca','gl','eu'])
+        self.assertGreaterEqual(metadata['review_revision'],2)
+        for code in metadata['reviewed_languages']:self.assertGreater(metadata['reviewed_game_spans'][code],0)
+
     def test_installer_runtime_and_patch_offer_the_same_languages(self):
         metadata=json.loads((PACK/'pack.json').read_text(encoding='utf-8'))
         header=(ROOT/'runtime/include/pc_locale_catalog.h').read_text(encoding='utf-8')

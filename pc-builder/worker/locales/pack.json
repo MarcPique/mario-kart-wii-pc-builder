@@ -30,11 +30,17 @@
   "model_revision": "f8d333a098d19b4fd9a8b18f94170487ad3f821d",
   "andaluh": "0.3.1",
   "base_sha256": "a31212822aedce891d0ab39f3916733022dff2233233c73eb667e122a00db95c",
-  "target_sha256": "7132d767160fc6c281c3ba97062d69b2c3601441e0b022e5c932ba795642d062",
-  "review_revision": 1,
+  "target_sha256": "a6e96062646f73fac1705744ed8c81e6f60fac536d6a7e1b026b0e9668db6c2c",
+  "review_revision": 2,
+  "localization_status": "reviewed",
+  "reviewed_languages": [
+    "ca",
+    "gl",
+    "eu"
+  ],
   "translation_context": "whole BMG text spans; reflow after translation",
-  "private_review_sha256": "da462decbf91528c95978b99b2dbb745fb27836841724c41cae5a810a822551c",
-  "reviewed_pc_entries": 1245,
+  "private_review_sha256": "5ed77ee335a2409e187411a440ec53ff472779c7f3c2c0bbbbffd2278e31b52c",
+  "reviewed_pc_entries": 1230,
   "reviewed_game_spans": {
     "ca": 1543,
     "gl": 1543,
@@ -279,5 +285,5 @@
     65290,
     65306
   ],
-  "patch_sha256": "9470dbe60382e428845054ce1b26570ebbf971fd9877d9686b9b416d01053ff6"
+  "patch_sha256": "51b5353d1a6ea4165f3ee2b864419801016cf88e6e2b034216f83d30be031dc8"
 }

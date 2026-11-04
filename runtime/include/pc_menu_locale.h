@@ -12,6 +12,6 @@ inline std::u16string Quality(){return T(u"Calidad grafica",u"Graphics Quality",
 inline std::u16string Language(){return T(u"Idioma",u"Language",u"Langue",u"Sprache",u"Lingua");}
 inline std::u16string Options(){return T(u"Opciones",u"Options",u"Options",u"Optionen",u"Opzioni");}
 inline const std::vector<std::string>& Codes(){return PcLiveLocale::LanguageCodes();}
-inline std::vector<std::u16string> Languages(){std::vector<std::u16string> names;for(const auto& code:Codes()){names.emplace_back(PcLocaleCatalog::Name(code));if(PcLocaleCatalog::AutomaticTranslation(code))names.back()+=u" *";}return names;}
+inline std::vector<std::u16string> Languages(){std::vector<std::u16string> names;for(const auto& code:Codes())names.emplace_back(PcLocaleCatalog::Name(code));return names;}
 inline unsigned LanguageIndex(const std::string& code){const auto& codes=Codes();auto found=std::find(codes.begin(),codes.end(),code);if(found==codes.end())found=std::find(codes.begin(),codes.end(),"en");return static_cast<unsigned>(found-codes.begin());}
 }

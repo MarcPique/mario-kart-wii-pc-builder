@@ -29,6 +29,8 @@ def main():
     source=encode(menus,races)
     assets=Path(__file__).resolve().parent/'locales'
     metadata=json.loads((assets/'pack.json').read_text(encoding='utf-8'))
+    if metadata.get('localization_status')!='reviewed':
+        raise ValueError('El paquete de idiomas no ha completado la revisión para esta versión.')
     if hashlib.sha256(source).hexdigest()!=metadata['base_sha256']:
         raise ValueError('Los archivos de idioma no coinciden con el disco y el pack compatibles.')
     required=set(metadata['required_codepoints'])

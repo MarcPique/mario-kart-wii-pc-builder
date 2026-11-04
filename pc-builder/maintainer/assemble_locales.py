@@ -3,14 +3,14 @@ from pathlib import Path
 import sys,json,hashlib,unicodedata,random
 ROOT=Path(__file__).resolve().parents[2]
 sys.path.insert(0,str(ROOT/'pc-builder/worker'))
-from localization_helpers import corpus,translate_plain,TARGETS,shared_record,PRINTF,reflow,transcribe_prose,correct_base_wording
+from localization_helpers import corpus,translate_plain,TARGETS,shared_record,PRINTF,reflow,transcribe_prose,correct_base_wording,validate_review_coverage
 from locale_messages import transform_message,message_parts,visible_characters
 from extended_locales import encode,typography
 from locale_overrides import TEXT,GAME,OTHER
 from make_bps import create
 from bps_patch import apply
 
-def assemble(workspace,cache_file,output,audit_dir,review_file=None):
+def assemble(workspace,cache_file,output,audit_dir,review_file=None,reviewed_release=False):
     import andaluh
     audit_dir.mkdir(parents=True,exist_ok=True)
     random.seed(0)
@@ -30,6 +30,7 @@ def assemble(workspace,cache_file,output,audit_dir,review_file=None):
             for english,text in entries.items():
                 if not isinstance(text,str) or not text.strip():raise ValueError('Empty reviewed text')
                 cache[code][english]=text
+    accepted_counts=validate_review_coverage(jobs,reviewed) if reviewed_release else {}
     source=encode(menus,races)
     missing=[]
     def translated_record(record,code):
@@ -121,7 +122,10 @@ def assemble(workspace,cache_file,output,audit_dir,review_file=None):
               'model_revision':'f8d333a098d19b4fd9a8b18f94170487ad3f821d',
               'andaluh':'0.3.1','base_sha256':hashlib.sha256(source).hexdigest(),
               'target_sha256':hashlib.sha256(target).hexdigest(),
-              'review_revision':1 if reviewed else 0,'translation_context':'whole BMG text spans; reflow after translation',
+              'review_revision':2 if reviewed_release else 1 if reviewed else 0,
+              'localization_status':'reviewed' if reviewed_release else 'development',
+              'reviewed_languages':list(accepted_counts),
+              'translation_context':'whole BMG text spans; reflow after translation',
               'private_review_sha256':hashlib.sha256(Path(review_file).read_bytes()).hexdigest() if review_file else None,
               'reviewed_pc_entries':sum(map(len,menu_output.values())),
               'reviewed_game_spans':{code:len(set(entries)&set(jobs[code])) for code,entries in reviewed.items()}}

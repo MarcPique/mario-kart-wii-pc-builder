@@ -1,12 +1,10 @@
-## Mario Kart Wii PC Builder 1.1.0-preview.5
+## Mario Kart Wii PC Builder 1.1.0
 
-**Última revisión:** corregida una repetición que seguía apareciendo en una invitación de amistad en andalûh. Las correcciones del español se aplican antes de generar la transcripción. El contador de salas usa ahora una etiqueta traducida y el número, evitando combinaciones como «1 salas» en los quince idiomas. Se conserva el cambio inmediato de idioma.
+**Idiomas revisados:** catalán, gallego y euskera pasan a estado revisado, sin asteriscos ni aviso beta en el juego o instalador. Revisión de **1.543 fragmentos de juego por idioma** y **82 textos de PC en cada uno de los quince idiomas (1.230 entradas)**. La última pasada corrige acrobacias, invitaciones, multijugador, plurales, eliminaciones y nombres de circuitos.
 
-Los avisos enviados en directo por el servidor de Retro WFC conservan su idioma original y pueden mostrarse en inglés; no forman parte del banco de traducciones instalado.
+La generación de publicación exige aceptar todos los fragmentos requeridos; se comprueban fuentes, botones, variables y formatos como `%ls` y `%04d`. Se conservan los nombres propios y el cambio de idioma inmediato, sin reiniciar. Catalán, gallego y euskera tienen origen automático con revisión contextual posterior; esta procedencia sigue documentada. No son traducciones oficiales ni una certificación por hablantes nativos. [Alcance y procedencia](https://github.com/MarcPique/mario-kart-wii-pc-builder/blob/main/docs/LOCALIZATION.md).
 
-**Revisión de idiomas:** 1.260 entradas del catálogo de PC en los quince idiomas y 1.543 fragmentos de juego por idioma en catalán, gallego y euskera. Corregidos sentidos equivocados de carrera, circuito, copa, derrape, salas y texturas; confirmaciones y mensajes que perdían instrucciones. Las frases se revisan con contexto antes de ajustarse a las líneas. Se conservan botones, variables, `%ls`, `%04d`, nombres propios y códigos como ZIP/7z o 200cc. Andalûh mantiene las marcas y formatos sin transcribirlos. El aviso antiguo que pedía reiniciar al cambiar de idioma se corrige en los quince idiomas.
-
-El runtime aplica ahora el catálogo revisado también al español, francés, alemán, italiano e inglés. Los textos de juego de Retro Rewind se conservan salvo las correcciones indicadas. Catalán, gallego y euskera siguen identificados como experimentales; esta revisión no es una certificación por hablantes nativos. [Alcance y procedencia](https://github.com/MarcPique/mario-kart-wii-pc-builder/blob/main/docs/LOCALIZATION.md).
+**15 idiomas:** español, inglés, francés, alemán, italiano, neerlandés, checo, finés, ruso, turco, español latinoamericano, catalán, gallego, euskera y andalûh (EPA). Solo se utilizan las fuentes existentes. Voces e imágenes con texto conservan su contenido. Los avisos enviados por Retro WFC conservan el idioma del servidor y pueden estar en inglés.
 
 **Formatos visibles en la primera página:** abre Opciones avanzadas → Pantalla y utiliza el selector inferior Formato para recorrer los 16 formatos. Los tres botones superiores son accesos rápidos. La resolución interna sigue disponible en su página propia.
 
@@ -17,10 +15,6 @@ El runtime aplica ahora el catálogo revisado también al español, francés, al
 - **16 formatos en vivo:** Automático, 4:3, 5:4, 3:2, 16:10, 16:9, 1.85:1, 2:1, 21:9, 43:18, 64:27, 32:10, 32:9, 48:9, 1:1 y 9:16. El formato fijo conserva proporciones y usa bandas si corresponde; Automático sigue la ventana.
 - **Texturas de Dolphin PNG/DDS** con activación y recarga en el menú nativo, sin reiniciar. Copia los archivos descomprimidos a `UserData/Load/Textures/RMCP01` o `RMC`, conservando los nombres `tex1_`. Se han probado PNG, DDS, paquete parcial, archivo dañado y retirada del paquete: lo que falta o falla utiliza el original. ZIP y 7z se importan automáticamente; RAR debe extraerse antes. No se incluye ningún paquete de texturas.
 
-
-**Versión preliminar de idiomas:** español, inglés, francés, alemán, italiano, neerlandés, checo, finés, ruso, turco, español latinoamericano, catalán, gallego, euskera y andalûh (EPA). El cambio es inmediato en el mismo proceso y utiliza únicamente las fuentes ya instaladas. Japonés y coreano no se ofrecen porque faltan caracteres en esas fuentes.
-
-Catalán, gallego y euskera incluyen **traducción automática experimental** del juego, señalada con asterisco y aviso en el menú; los textos de PC y parte de la terminología se han revisado. Los otros idiomas añadidos usan textos de Retro Rewind con suplementos automáticos. Andaluh es una transcripción EPA del español. Las voces y las imágenes con texto no cambian. No se presenta como una traducción profesional ni como los parches de otros proyectos comunitarios. [Procedencia y herramientas](https://github.com/MarcPique/mario-kart-wii-pc-builder/blob/main/docs/LOCALIZATION.md).
 
 Genera tu juego de Windows a partir de tu propio disco **PAL RMCP01**. Descarga `MKWii-PC-Builder.exe`, selecciona tu ISO, WBFS o RVZ y elige la carpeta. El instalador crea el EXE del escritorio con el icono obtenido localmente de tu disco.
 

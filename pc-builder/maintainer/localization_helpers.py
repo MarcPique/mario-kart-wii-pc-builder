@@ -44,6 +44,19 @@ def shared_record(contexts,ident):
     return all(contexts[code].get(ident,(0,b''))[1]==source for code in ('es','fr','de','it'))
 
 
+def validate_review_coverage(jobs,reviewed,codes=('ca','gl','eu')):
+    """A reviewed release must explicitly accept every required prose span."""
+    counts={}
+    for code in codes:
+        required=set(jobs.get(code,()))
+        if not required:raise ValueError('No review corpus for '+code)
+        entries=reviewed.get(code,{})
+        missing=[source for source in required if not isinstance(entries.get(source),str) or not entries[source].strip()]
+        if missing:raise ValueError(f'Incomplete review for {code}: {len(missing)} spans')
+        counts[code]=len(required)
+    return counts
+
+
 def correct_base_wording(context):
     """Repair inherited wording before any Spanish-derived transcription."""
     font,data=context['en'][0x212d]

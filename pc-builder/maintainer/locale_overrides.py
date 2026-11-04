@@ -1,6 +1,5 @@
 # Terminology and native PC labels reviewed separately from the automatic game text.
 TEXT = {
-'Automatic translation (beta). Language changes immediately.':("Traducció automàtica (beta). Canvi d'idioma immediat.",'Tradución automática (beta). Cambio de idioma inmediato.','Itzulpen automatikoa (beta). Hizkuntza berehala aldatzen da.'),
 ' rooms':(' sales',' salas',' gela'),
 'Advanced Options':('Opcions avançades','Opcións avanzadas','Aukera aurreratuak'),
 'Anisotropic Filter':('Filtre anisotròpic','Filtro anisotrópico','Iragazki anisotropikoa'),

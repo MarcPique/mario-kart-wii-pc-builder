@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.1.0 — 2026-11-04
+
+- Complete the contextual language review and promote Catalan, Galician and Basque to reviewed status. Remove beta notices and asterisks from native menus and the installer while retaining machine-assisted provenance.
+- Refine stunts, multiplayer/invitation wording, plural forms, elimination templates and canonical track names. Review all 1,543 required game spans per added translation and 82 PC labels in each of fifteen languages.
+- Require explicit nonempty acceptance of every generated game span for release generation; reject incomplete reviews and non-reviewed public packs. Retain font, BMG command and printf validation.
+- Include the prior previews’ integrated online, controller assignment, live display formats, texture archives and desktop exit. Existing online and launcher integration limits remain documented.
+
 ## 1.1.0-preview.5 — 2026-11-04
 
 - Repair inherited Spanish wording before deriving Andaluh, so the friend-invitation correction reaches both languages. Preserve names, buttons and format arguments.

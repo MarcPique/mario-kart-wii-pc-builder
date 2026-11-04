@@ -105,7 +105,7 @@ internal static class Program
                 using var valid = JsonDocument.Parse("{\"stage\":\"complete\"}");
                 return ProgressProtocol.TryGetStage(valid.RootElement, out var stage) && stage == "complete" ? 0 : 1;
             }
-            if (args.Contains("--version")) { Console.WriteLine("1.1.0-preview.5"); return 0; }
+            if (args.Contains("--version")) { Console.WriteLine("1.1.0"); return 0; }
             if (Array.IndexOf(args, "--render-preview") is var preview && preview >= 0 && preview + 1 < args.Length)
             {
                 ApplicationConfiguration.Initialize(); using var form = new BuilderForm(); form.ShowInTaskbar = false; form.StartPosition = FormStartPosition.Manual; form.Location = new Point(-12000, -12000); form.Show(); Application.DoEvents();
@@ -181,9 +181,9 @@ internal sealed class BuilderForm : Form
         Add(new Label { Text = "2   Carpeta de instalación", Font = new Font(Font, FontStyle.Bold) }, 32, 220, 750, 24);
         Add(destination, 32, 250, 630, 30); Add(selectFolder, 680, 248, 166, 34);
         Add(new Label { Text = "Idioma inicial" }, 32, 310, 120, 28); Add(language, 160, 307, 175, 30);
-        language.Items.AddRange(["Español", "English", "Français", "Deutsch", "Italiano", "Nederlands", "Čeština", "Suomi", "Русский", "Türkçe", "Español LA", "Català *", "Galego *", "Euskara *", "Andalûh"]); language.SelectedIndex = 0;
+        language.Items.AddRange(["Español", "English", "Français", "Deutsch", "Italiano", "Nederlands", "Čeština", "Suomi", "Русский", "Türkçe", "Español LA", "Català", "Galego", "Euskara", "Andalûh"]); language.SelectedIndex = 0;
         Add(desktop, 360, 310, 485, 30);
-        Add(new Label { Text = "Se descargarán herramientas y Retro Rewind. Tu imagen y tus partidas permanecen en tu PC.\nNecesita Windows x64 con AVX2, Internet y 20 GiB libres para compilar.\n* Català, Galego y Euskara: traducción automática beta.", ForeColor = Color.DimGray }, 32, 355, 814, 56);
+        Add(new Label { Text = "Se descargarán herramientas y Retro Rewind. Tu imagen y tus partidas permanecen en tu PC.\nNecesita Windows x64 con AVX2, Internet y 20 GiB libres para compilar.\n15 idiomas revisados. Cambio de idioma inmediato desde el juego.", ForeColor = Color.DimGray }, 32, 355, 814, 56);
         Add(status, 32, 418, 814, 42); Add(progress, 32, 465, 814, 12);
         Add(details, 32, 502, 175, 28); Add(install, 596, 495, 250, 42); Add(cancel, 462, 495, 120, 42); Add(launch, 596, 495, 250, 42);
         Add(log, 32, 550, 814, 180);

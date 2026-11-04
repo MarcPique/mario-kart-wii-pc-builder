@@ -1,8 +1,8 @@
 MARIO KART WII PC — COMPILADO DESDE TU DISCO
 
-1.1.0-preview.5: revisión de idiomas y terminología de juego y PC.
-Se conservan nombres propios, botones y variables. Catalán, gallego y euskera
-siguen siendo traducciones experimentales. El cambio de idioma es inmediato.
+1.1.0: idiomas revisados, sin etiqueta beta ni asteriscos.
+Revisión contextual de catalán, gallego y euskera y del catálogo de PC.
+Se conservan nombres propios, botones y variables. Cambio inmediato.
 
 Abre Mario Kart Wii.exe. La preparación se hace oculta y después aparece la
 presentación original. Conserva GameData y UserData junto al EXE de esta carpeta.
@@ -21,9 +21,11 @@ Se admiten hasta cuatro mandos para el multijugador local. No se necesita F10.
 Idiomas: español, inglés, francés, alemán, italiano, neerlandés, checo, finés,
 ruso, turco, español latinoamericano, catalán, gallego, euskera y andalûh EPA.
 El cambio es inmediato, utilizando solo las fuentes existentes. Catalán,
-gallego y euskera llevan asterisco: traducciones automáticas experimentales.
-Otros idiomas añadidos incluyen suplementos automáticos; andalûh transcribe
+gallego y euskera tienen origen automático y revisión contextual completada.
+Los demás idiomas conservan los textos de Retro Rewind; andalûh transcribe
 el español. No cambian las voces ni los textos dibujados en imágenes.
+Los avisos del servidor conservan su idioma. Procedencia: docs/LOCALIZATION.md
+en el repositorio. Traducciones no oficiales, sin certificación profesional.
 Se guarda sin reiniciar. AA y anisotropía también se aplican en vivo.
 
 Retro WFC se abre desde el menú del juego en el mismo proceso. Incluye los
