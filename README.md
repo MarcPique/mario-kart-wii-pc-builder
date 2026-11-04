@@ -2,17 +2,19 @@
 
 ![Mario Kart Wii PC Builder](docs/hero.svg)
 
-[![Descargar 1.1.0](https://img.shields.io/badge/Descargar-1.1.0-009bd7?style=for-the-badge)](https://github.com/MarcPique/mario-kart-wii-pc-builder/releases/download/v1.1.0/MKWii-PC-Builder.exe)
+[![Descargar 1.2.0](https://img.shields.io/badge/Descargar-1.2.0-009bd7?style=for-the-badge)](https://github.com/MarcPique/mario-kart-wii-pc-builder/releases/download/v1.2.0/MKWii-PC-Builder.exe)
 ![Windows x64](https://img.shields.io/badge/Windows-x64-1478c8?style=for-the-badge&logo=windows)
 ![Tu disco](https://img.shields.io/badge/ISO-local-343c4a?style=for-the-badge)
-[![Online habilitado](https://img.shields.io/badge/Online-HABILITADO%20%C2%B7%20Retro%20WFC-27ae60?style=for-the-badge)](#online-habilitado)
+[![Online habilitado](https://img.shields.io/badge/Online-HABILITADO%20%C2%B7%201--2%20jugadores-27ae60?style=for-the-badge)](#online-habilitado)
 [![Licencia](https://img.shields.io/badge/Licencia-GPL--3.0-56a85b?style=for-the-badge)](LICENSE)
 
 ### Tu disco de Mario Kart Wii. Tu juego de Windows.
 
+![Menú original: Online para uno o dos jugadores](docs/screenshots/online-two-menu.png)
+
 **Selecciona tu imagen PAL → compila en tu PC → abre Mario Kart Wii.exe desde el escritorio.**
 
-**[⬇ Descargar para Windows · 1.1.0](https://github.com/MarcPique/mario-kart-wii-pc-builder/releases/download/v1.1.0/MKWii-PC-Builder.exe)**
+**[⬇ Descargar para Windows · 1.2.0](https://github.com/MarcPique/mario-kart-wii-pc-builder/releases/download/v1.2.0/MKWii-PC-Builder.exe)**
 
 [Capturas](#capturas) · [Instalación](#instalación) · [Idiomas](#15-idiomas-sin-reiniciar) · [Online](#online-habilitado) · [Texturas](#paquetes-de-texturas-de-dolphin) · [Cambios](CHANGELOG.md)
 
@@ -20,23 +22,24 @@
 
 Este builder genera una instalación nativa para Windows a partir de **tu propio disco PAL RMCP01**, con opciones de PC integradas en los menús del juego. El instalador público **no contiene la ROM, el juego recompilado, partidas ni claves de consola**.
 
-**✅ Online habilitado mediante Retro WFC:** login, amigos y salas integrados en el propio juego, sin cerrar ni cambiar de ejecutable. Las salas se consultan al iniciar y se actualizan automáticamente cada **40 segundos**.
+**✅ Online habilitado para uno o dos jugadores por PC:** login, amigos y salas integrados en el propio juego, sin cerrar ni cambiar de ejecutable. Las salas se consultan al iniciar y se actualizan automáticamente cada **40 segundos**.
 
-> **Versión 1.1.0:** idiomas revisados y todas las novedades descritas aquí. [Notas y SHA-256](https://github.com/MarcPique/mario-kart-wii-pc-builder/releases/tag/v1.1.0).
+> **Versión 1.2.0:** Online para uno o dos jugadores, distribución Nintendo, My Stuff y cambio de partida desde el juego. [Notas y SHA-256](https://github.com/MarcPique/mario-kart-wii-pc-builder/releases/tag/v1.2.0).
 
 ## Lo que incluye
 
-| Función | Incluido en 1.1.0 |
+| Función | Incluido en 1.2.0 |
 |---|---|
 | 🏁 Presentación original | Ventana **Mario Kart Wii**, icono en EXE, ventana y barra de tareas; preparación inicial en segundo plano |
 | ⚙️ Opciones avanzadas | Integradas en **Opciones y pausa**, con controles, fuentes y animaciones nativos |
 | 🖥️ Pantalla y gráficos | Presets, resolución interna y de ventana, **16 formatos**, V-Sync, MSAA y anisotropía |
 | 🌍 Idiomas | **15 idiomas**, incluidos catalán, gallego, euskera y andalûh; cambio inmediato |
 | 🎮 Mandos | Hasta **4 jugadores locales**, asignación automática J1–J4 y reasignación desde el juego |
-| 🌐 Online habilitado | **Retro WFC**, login, amigos y selector de salas; consulta inicial y refresco cada **40 segundos** |
+| 🌐 Online habilitado | **Online**, uno o dos jugadores por PC, login, amigos y selector de salas; consulta inicial y refresco cada **40 segundos** |
 | 🏎️ Retro Rewind | Circuitos adicionales y variantes de personajes utilizables también en carreras locales |
 | 🎨 Texturas de Dolphin | **PNG, DDS, ZIP y 7z**; activar, desactivar y recargar sin reiniciar; originales donde falte una textura |
 | 🚪 Salir al escritorio | Botón en el menú principal con confirmación original y **Cancelar** seleccionado inicialmente |
+| 🎵 My Stuff y partidas | Cinco modos originales, preparación en segundo plano y cambio confirmado de banco sin reiniciar el EXE |
 | 📦 Instalación | EXE de arranque en el escritorio; actualizaciones que conservan ajustes y partidas |
 
 El icono completo se obtiene **localmente del banner de tu disco**. La integración usa Retro Rewind **6.13.4**, incluido su contenido adicional y sus cambios de jugabilidad.
@@ -47,7 +50,7 @@ El icono completo se obtiene **localmente del banner de tu disco**. La integraci
 
 El cambio actualiza los textos del juego, Retro Rewind y las opciones de PC **al instante**, incluidos los menús ya abiertos. Solo utiliza las fuentes existentes. Las voces y el texto integrado en imágenes no cambian. Los avisos enviados por el servidor de Retro WFC se muestran en su idioma original y pueden estar en inglés.
 
-**Idiomas revisados en 1.1.0:** catálogo de **82 textos de PC por idioma (1.230 entradas)** y **1.543 fragmentos de juego por idioma** en catalán, gallego y euskera. La revisión final corrige además acrobacias, invitaciones, plurales, instrucciones y nombres de circuitos. Los tres idiomas pasan a estado **revisado**, sin asteriscos ni aviso beta en el juego o instalador. La generación de un paquete de publicación exige cobertura completa de la revisión y validación de fuentes, botones y variables.
+**Idiomas revisados en 1.2.0:** catálogo de **92 textos de PC por idioma (1.380 entradas)** y **1.543 fragmentos de juego por idioma** en catalán, gallego y euskera. La revisión final corrige además acrobacias, invitaciones, plurales, instrucciones y nombres de circuitos. Los tres idiomas pasan a estado **revisado**, sin asteriscos ni aviso beta en el juego o instalador. La generación de un paquete de publicación exige cobertura completa de la revisión y validación de fuentes, botones y variables.
 
 Catalán, gallego y euskera tienen **origen automático con revisión contextual posterior**, documentado en el paquete. Los otros idiomas conservan los textos de Retro Rewind con el catálogo de PC revisado. **Andalûh es una transcripción EPA del español.** Japonés y coreano no se ofrecen por falta de caracteres en las fuentes existentes. Son traducciones no oficiales, sin certificación por hablantes nativos; pueden recibir correcciones. [Procedencia, alcance y comprobaciones](docs/LOCALIZATION.md).
 
@@ -66,6 +69,8 @@ Formato, MSAA y anisotropía se pueden cambiar sin reiniciar. Bloom se aplica al
 Al abrir el juego o conectar/desconectar dispositivos, los mandos ocupan automáticamente **J1, J2, J3 y J4**, antes que el teclado, conservando su orden relativo y rellenando puestos libres. **Sin mando, el teclado controla J1.** En **Opciones avanzadas → Mandos**, selecciona el dispositivo y pulsa **Asignar** en el jugador deseado; **Vaciar** libera su puesto. La reasignación manual se conserva hasta el siguiente cambio de dispositivos o arranque.
 
 El selector reconoce familias **DualSense, DualShock, Xbox, Switch Pro, Joy-Con y mandos Switch genéricos**. El panel inferior muestra el **nombre completo del modelo**, y cada fila permite consultar su asignación. La identidad del dispositivo se mantiene al desconectar y volver a conectar. Se ha verificado un **DualSense Edge por Bluetooth**, además de pruebas con mandos virtuales, cuatro jugadores y conexión/desconexión en vivo. Otros modelos y cuatro mandos físicos simultáneos necesitan pruebas en esos dispositivos.
+
+**Distribución Nintendo predeterminada:** A a la derecha, B abajo, X arriba e Y a la izquierda. En **DualSense/DualShock, círculo acepta y acelera; X vuelve y frena; triángulo es X y cuadrado es Y**. Se corrigen también los antiguos valores predeterminados guardados. Las asignaciones personalizadas explícitas se conservan.
 
 ### Circuitos y personajes de Retro Rewind
 
@@ -91,7 +96,7 @@ El juego conserva su presentación y menús originales. La preparación inicial 
 
 ## Instalación
 
-1. Descarga **[MKWii-PC-Builder.exe · 1.1.0](https://github.com/MarcPique/mario-kart-wii-pc-builder/releases/download/v1.1.0/MKWii-PC-Builder.exe)** desde Releases.
+1. Descarga **[MKWii-PC-Builder.exe · 1.2.0](https://github.com/MarcPique/mario-kart-wii-pc-builder/releases/download/v1.2.0/MKWii-PC-Builder.exe)** desde Releases.
 2. Selecciona tu imagen **ISO, WBFS o RVZ** de Mario Kart Wii **PAL RMCP01**.
 3. Elige la carpeta de instalación y pulsa **Compilar e instalar**.
 4. Abre **Mario Kart Wii.exe** desde el escritorio o pulsa **Abrir el juego**.
@@ -138,7 +143,7 @@ El botón grande inferior recorre **Pantalla → Calidad gráfica → Idioma →
 
 ## Online habilitado
 
-El online viene habilitado mediante **Retro WFC**, con la integración de Retro Rewind 6.13.4. Entra en **Retro WFC** desde el menú original: login, amigos y salas utilizan sus menús nativos **en el mismo proceso, sin cerrar el juego ni abrir otro launcher**. La disponibilidad y las normas dependen de [Retro WFC](https://rwfc.net/).
+El modo **Online** está habilitado con la integración de Retro Rewind 6.13.4 y admite **uno o dos jugadores por PC**. Entra en **Online** desde el menú original: login, amigos y salas utilizan sus menús nativos **en el mismo proceso, sin cerrar el juego ni abrir otro launcher**. La disponibilidad y las normas dependen de [Retro WFC](https://rwfc.net/).
 
 Las salas públicas se consultan **al iniciar el juego y cada 40 segundos**. El contador muestra su estado y el botón **Salas** permite elegir una sala compatible, con paginación y avisos si deja de estar disponible. También están disponibles el emparejamiento mundial y las salas de amigos.
 

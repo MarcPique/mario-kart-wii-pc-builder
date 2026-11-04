@@ -38,7 +38,6 @@ struct RuntimeUserConfig {
     std::optional<std::string> gameLanguage;
     std::optional<uint32_t> myStuffMode;
     std::optional<bool> separateRetroSave;
-    std::optional<uint32_t> localOnlinePlayers;
     std::optional<uint32_t> qualityPreset;
     std::optional<bool> widescreen;
     std::optional<bool> forceAspect169;
@@ -263,8 +262,8 @@ inline std::filesystem::path BaseApplicationDataDirectory() {
 }
 
 inline std::filesystem::path ApplicationDataDirectory(){
-    const auto& profile=PcSessionProfile::Current();
     const auto base=BaseApplicationDataDirectory();
+    const auto& profile=PcSessionProfile::Current();
     return profile?PcSessionProfile::Directory(base,*profile):base;
 }
 
@@ -420,7 +419,6 @@ inline RuntimeUserConfig ParseConfigDocument(const toml::value& document) {
     }
 
     if (auto value=FindConfigValue<std::string>(document,"system","language");value&&PcLocaleCatalog::Known(*value)) config.gameLanguage=*value;
-    if (auto value=FindConfigValue<uint32_t>(document,"retro","local_online_players");value&&*value>=1&&*value<=4) config.localOnlinePlayers=*value;
     if (auto value=FindConfigValue<uint32_t>(document,"retro","my_stuff");value&&*value<=4) config.myStuffMode=*value;
     config.separateRetroSave=FindConfigValue<bool>(document,"retro","separate_save");
     if (auto value=FindConfigUint(document,"video","quality_preset");value&&*value<=5)config.qualityPreset=*value;

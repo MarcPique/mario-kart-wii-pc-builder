@@ -14,8 +14,6 @@ extern "C" void DVDMyStuffStop();
 #include "audio_backend.h"
 #include "aurora_events.h"
 #include "controller_button_names.h"
-#include "pc_local_input.h"
-#include "pc_local_sessions.h"
 #include "controller_mapping_wizard.h"
 #include "input_bindings.h"
 #include "game_graphics_options.h"
@@ -27,7 +25,6 @@ extern "C" void DVDMyStuffStop();
 #include <imgui.h>
 #include <SDL3/SDL_events.h>
 #include <SDL3/SDL_gamepad.h>
-#include <SDL3/SDL_hints.h>
 #include <SDL3/SDL_keyboard.h>
 #include <SDL3/SDL_mouse.h>
 #include <SDL3/SDL_scancode.h>
@@ -277,11 +274,8 @@ void ApplyConfiguredMappings() {
         if (controllerIndex < 0) {
             continue;
         }
-        // The [controller] bindings are positional and shared by every port, so
-        // they describe whatever pad the user set them up with (usually an Xbox
-        // layout: a = south). A Wii U Pro Controller has a fixed, known layout
-        // (A on the east position) that aurora already maps by name; applying
-        // the shared bindings on top swaps A/B and X/Y.
+        // Preserve Aurora's intrinsic Wii U Pro layout. Other controllers use
+        // Nintendo defaults below, with optional explicit per-button overrides.
         if (const char* name = PADGetNameForControllerIndex(static_cast<uint32_t>(controllerIndex));
             name != nullptr && std::string_view(name).find("Wii U Pro") != std::string_view::npos) {
             continue;
@@ -294,6 +288,24 @@ void ApplyConfiguredMappings() {
         for (size_t i = 0; i < kControllerButtons.size(); ++i) {
             const auto& configured = RuntimeConfigFile::ControllerButton(i);
             if (!configured) {
+                // Nintendo face layout: east=A, south=B, north=X, west=Y.
+                // This also replaces old serialized PC defaults on existing
+                // pads: DualSense Circle accepts/accelerates, Cross backs/brakes.
+                if(i<4){
+                    constexpr std::array<uint32_t,4> positions{SDL_GAMEPAD_BUTTON_EAST,SDL_GAMEPAD_BUTTON_SOUTH,SDL_GAMEPAD_BUTTON_NORTH,SDL_GAMEPAD_BUTTON_WEST};
+                    auto button=positions[i];auto* pad=PADGetSDLGamepadForIndex(static_cast<uint32_t>(controllerIndex));
+                    if(pad){
+                        const auto type=SDL_GetGamepadType(pad);
+                        if(type==SDL_GAMEPAD_TYPE_NINTENDO_SWITCH_PRO||type==SDL_GAMEPAD_TYPE_NINTENDO_SWITCH_JOYCON_LEFT||type==SDL_GAMEPAD_TYPE_NINTENDO_SWITCH_JOYCON_RIGHT||type==SDL_GAMEPAD_TYPE_NINTENDO_SWITCH_JOYCON_PAIR){
+                            // SDL can normalize Nintendo mappings by labels.
+                            // Follow printed A/B/X/Y rather than swapping twice.
+                            constexpr std::array<SDL_GamepadButtonLabel,4> labels{SDL_GAMEPAD_BUTTON_LABEL_A,SDL_GAMEPAD_BUTTON_LABEL_B,SDL_GAMEPAD_BUTTON_LABEL_X,SDL_GAMEPAD_BUTTON_LABEL_Y};
+                            for(unsigned candidate=0;candidate<4;++candidate)if(SDL_GetGamepadButtonLabel(pad,static_cast<SDL_GamepadButton>(candidate))==labels[i]){button=candidate;break;}
+                        }
+                    }
+                    PADSetButtonMapping(port,{button,kControllerButtons[i].padButton});
+                    PADSetAltButtonMapping(port,{PAD_NATIVE_BUTTON_INVALID,kControllerButtons[i].padButton});
+                }
                 continue;
             }
             const ControllerBindingPair binding = SplitControllerBinding(*configured);
@@ -1443,11 +1455,6 @@ void ApplyInputBlockState() {
 
 void InitializeRuntimeSettings(bool showWindowWhenReady) noexcept {
     g_showWindowWhenReady = showWindowWhenReady;
-    PcLocalInput::Initialize();
-    if(PcLocalInput::Host()||PcLocalInput::Follower()){
-        aurora_set_background_input(true);
-        aurora_set_pause_on_focus_lost(false);
-    }
     PADInit();
     // A fresh portable install needs usable input before reaching Options.
     if (!std::filesystem::exists(RuntimeConfigFile::ApplicationDataDirectory()/"keyboard_bindings.dat"))
@@ -1520,7 +1527,7 @@ void HandleEvents(const AuroraEvent* events) noexcept {
             ApplyInputBlockState();
         }
         if (ev->sdl.type == SDL_EVENT_GAMEPAD_BUTTON_DOWN && !g_rebind.active) {
-            if (ev->sdl.gbutton.button == SDL_GAMEPAD_BUTTON_EAST && g_topBarVisible) {
+            if (ev->sdl.gbutton.button == SDL_GAMEPAD_BUTTON_SOUTH && g_topBarVisible) {
                 SetTopBarVisible(false); ApplyInputBlockState();
             }
         }
@@ -1531,8 +1538,6 @@ void HandleEvents(const AuroraEvent* events) noexcept {
 }
 
 void ReleaseControllers() noexcept {
-    PcLocalSessions::Stop();
-    PcLocalInput::Stop();
     DVDMyStuffStop();
     PcOnlineRooms::Stop();
     // Aurora drives the LED white on first PADRead and never clears it, and the

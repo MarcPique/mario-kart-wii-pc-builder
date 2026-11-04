@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.2.0 — 2026-11-04
+
+- Keep Online to one original client and one or two players per PC. Retire the coordinated-client prototype; four players remain available locally.
+- Display **Online** throughout the localized menus. Preserve BMG formatting, variables, fonts and the original on-disk language bank.
+- Use Nintendo face-button defaults: DualSense Circle accepts/accelerates, Cross returns/brakes, Triangle maps to X and Square to Y. Apply these defaults over old serialized PC mappings while respecting explicit custom bindings.
+- Add native My Stuff controls with five modes, background immutable snapshots, safe cancellation and retained reads. Add confirmed save-bank switching back to the title without restarting the EXE; invalid/busy targets retain the current bank.
+- Review the expanded PC catalog: 92 labels in each of fifteen languages. Preserve existing game text, save paths and user data.
+- Remove retired coordinator source files from warm build caches. CT 200cc routing and applying newer upstream mod code remain unavailable; version checks continue to work.
+
 ## 1.1.0 — 2026-11-04
 
 - Complete the contextual language review and promote Catalan, Galician and Basque to reviewed status. Remove beta notices and asterisks from native menus and the installer while retaining machine-assisted provenance.

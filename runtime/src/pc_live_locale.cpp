@@ -3,6 +3,7 @@
 #include "memory.h"
 #include "runtime_log.h"
 #include "pc_locale_bank.h"
+#include "pc_online_label.h"
 #include "../third_party/pc_json.hpp"
 #include <fstream>
 #include <unordered_map>
@@ -32,7 +33,9 @@ void Prepare(){
     std::ifstream file(path,std::ios::binary);if(!file)return;
     file.seekg(0,std::ios::end);auto size=file.tellg();if(size<16||size>16*1024*1024)throw std::runtime_error("Invalid language bank size");file.seekg(0);bytes.resize(static_cast<size_t>(size));file.read(reinterpret_cast<char*>(bytes.data()),bytes.size());
     if(!file)throw std::runtime_error("Unable to read language bank");
+    const auto renamed=PcOnlineLabel::RebrandBank(bytes);
     layout=PcLocaleBank::Parse(bytes);payloadStart=layout.payloadStart;
+    RT_LOGF("pc-language","Online display label applied to %u localized message records\n",renamed);
     for(uint32_t i=0;i<layout.ids.size();++i)indices[layout.ids[i]]=i;
     const auto menuPath=path.parent_path()/"menu.json";
     if(std::ifstream menu{menuPath};menu){

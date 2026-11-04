@@ -1,6 +1,6 @@
 MARIO KART WII PC — COMPILADO DESDE TU DISCO
 
-1.2.0-dev.1: compilación de desarrollo de la integración de Retro Rewind.
+1.2.0: Online para uno o dos jugadores y controles con distribución Nintendo.
 Los idiomas mantienen su estado revisado, sin etiqueta beta ni asteriscos.
 Revisión contextual de catalán, gallego y euskera y del catálogo de PC.
 Se conservan nombres propios, botones y variables. Cambio inmediato.
@@ -19,6 +19,8 @@ página: Pantalla, Calidad gráfica, Idioma, Mandos, Actualizaciones, Resolució
 y Paquetes de texturas, My Stuff y Partidas.
 En Mandos elige un dispositivo y pulsa Asignar en el jugador deseado.
 Se admiten hasta cuatro mandos para el multijugador local. No se necesita F10.
+Distribución Nintendo: A a la derecha y B abajo. En DualSense, círculo acepta
+y acelera; X vuelve y frena. Triángulo equivale a X y cuadrado a Y.
 Idiomas: español, inglés, francés, alemán, italiano, neerlandés, checo, finés,
 ruso, turco, español latinoamericano, catalán, gallego, euskera y andalûh EPA.
 El cambio es inmediato, utilizando solo las fuentes existentes. Catalán,
@@ -29,12 +31,12 @@ Los avisos del servidor conservan su idioma. Procedencia: docs/LOCALIZATION.md
 en el repositorio. Traducciones no oficiales, sin certificación profesional.
 Se guarda sin reiniciar. AA y anisotropía también se aplican en vivo.
 
-Retro WFC se abre desde el menú del juego en el mismo proceso. Incluye los
+Online se abre desde el menú del juego en el mismo proceso. Incluye los
 menús y contenido de Retro Rewind 6.13.4. Las salas se consultan al arrancar y
 cada 40 segundos. El estado y las normas del servicio pertenecen a rwfc.net.
 El botón Salas permite elegir una sala pública compatible: se han probado
 los modos Retro y CT. CT 200cc no tiene ruta disponible en esta versión.
-Retro WFC admite hasta dos jugadores locales por PC, no cuatro.
+Online admite uno o dos jugadores locales por PC. Cuatro jugadores en local.
 
 Personajes personalizados incluidos en el pack: en la pantalla de personajes,
 pulsa L/R (L1/R1 en DualSense) antes de confirmar. También funcionan en las
@@ -54,8 +56,7 @@ segundo plano y la recarga completa de contenido nuevo siguen en desarrollo.
 Partidas permite cambiar entre RetroWFC y RetroWFC2 con confirmación y Cancelar
 inicial; vuelve al título en el mismo proceso y recarga los carnés. Solo desde
 Opciones, con la partida inactiva. Una partida no válida conserva la anterior.
-Cuatro jugadores online mediante sesiones coordinadas y la aplicación de
-actualizaciones siguen en desarrollo. Actualizaciones comprueba la versión.
+La aplicación de actualizaciones sigue en desarrollo. Actualizaciones comprueba la versión.
 
 Partidas: UserData/Saves/RetroWFC/RMCP y UserData/NAND.
 Ajustes: UserData/Config.toml. Diagnóstico: UserData/Logs.

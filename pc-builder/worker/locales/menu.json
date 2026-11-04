@@ -93,9 +93,7 @@
       "Keyboard": "Teclado",
       "Controller": "Mando",
       "Player": "Jugador",
-      "None": "Ninguno",
-      "Online players": "Jugadores online",
-      "Unable to start local online.": "No se pudo iniciar el online local."
+      "None": "Ninguno"
     },
     "en": {
       "Advanced Options": "Advanced Options",
@@ -189,9 +187,7 @@
       "Keyboard": "Keyboard",
       "Controller": "Controller",
       "Player": "Player",
-      "None": "None",
-      "Online players": "Online players",
-      "Unable to start local online.": "Unable to start local online."
+      "None": "None"
     },
     "fr": {
       "Advanced Options": "Options avancées",
@@ -285,9 +281,7 @@
       "Keyboard": "Clavier",
       "Controller": "Manette",
       "Player": "Joueur",
-      "None": "Aucun",
-      "Online players": "Joueurs en ligne",
-      "Unable to start local online.": "Impossible de lancer le jeu en ligne local."
+      "None": "Aucun"
     },
     "de": {
       "Advanced Options": "Erweiterte Optionen",
@@ -381,9 +375,7 @@
       "Keyboard": "Tastatur",
       "Controller": "Controller",
       "Player": "Spieler",
-      "None": "Keiner",
-      "Online players": "Online-Spieler",
-      "Unable to start local online.": "Lokales Online-Spiel konnte nicht starten."
+      "None": "Keiner"
     },
     "it": {
       "Advanced Options": "Opzioni avanzate",
@@ -477,9 +469,7 @@
       "Keyboard": "Tastiera",
       "Controller": "Controller",
       "Player": "Giocatore",
-      "None": "Nessuno",
-      "Online players": "Giocatori online",
-      "Unable to start local online.": "Impossibile avviare il gioco online locale."
+      "None": "Nessuno"
     },
     "nl": {
       "Advanced Options": "Geavanceerde opties",
@@ -573,9 +563,7 @@
       "Keyboard": "Toetsenbord",
       "Controller": "Controller",
       "Player": "Speler",
-      "None": "Geen",
-      "Online players": "Online spelers",
-      "Unable to start local online.": "Lokaal online spelen kon niet starten."
+      "None": "Geen"
     },
     "cs": {
       "Advanced Options": "Pokročilé možnosti",
@@ -669,9 +657,7 @@
       "Keyboard": "Klávesnice",
       "Controller": "Ovladač",
       "Player": "Hráč",
-      "None": "Žádný",
-      "Online players": "Hráči online",
-      "Unable to start local online.": "Místní online hru se nepodařilo spustit."
+      "None": "Žádný"
     },
     "fi": {
       "Advanced Options": "Lisäasetukset",
@@ -765,9 +751,7 @@
       "Keyboard": "Näppäimistö",
       "Controller": "Ohjain",
       "Player": "Pelaaja",
-      "None": "Ei mitään",
-      "Online players": "Verkkopelaajat",
-      "Unable to start local online.": "Paikallinen verkkopeli ei käynnistynyt."
+      "None": "Ei mitään"
     },
     "ru": {
       "Advanced Options": "Расширенные настройки",
@@ -861,9 +845,7 @@
       "Keyboard": "Клавиатура",
       "Controller": "Геймпад",
       "Player": "Игрок",
-      "None": "Нет",
-      "Online players": "Игроки онлайн",
-      "Unable to start local online.": "Не удалось запустить локальную онлайн-игру."
+      "None": "Нет"
     },
     "tr": {
       "Advanced Options": "Gelişmiş ayarlar",
@@ -957,9 +939,7 @@
       "Keyboard": "Klavye",
       "Controller": "Oyun kumandası",
       "Player": "Oyuncu",
-      "None": "Yok",
-      "Online players": "Çevrimiçi oyuncular",
-      "Unable to start local online.": "Yerel çevrimiçi oyun başlatılamadı."
+      "None": "Yok"
     },
     "es-419": {
       "Advanced Options": "Opciones avanzadas",
@@ -1053,9 +1033,7 @@
       "Keyboard": "Teclado",
       "Controller": "Control",
       "Player": "Jugador",
-      "None": "Ninguno",
-      "Online players": "Jugadores online",
-      "Unable to start local online.": "No se pudo iniciar el online local."
+      "None": "Ninguno"
     },
     "ca": {
       "Advanced Options": "Opcions avançades",
@@ -1149,9 +1127,7 @@
       "Keyboard": "Teclat",
       "Controller": "Comandament",
       "Player": "Jugador",
-      "None": "Cap",
-      "Online players": "Jugadors en línia",
-      "Unable to start local online.": "No s’ha pogut iniciar el joc en línia local."
+      "None": "Cap"
     },
     "gl": {
       "Advanced Options": "Opcións avanzadas",
@@ -1245,9 +1221,7 @@
       "Keyboard": "Teclado",
       "Controller": "Mando",
       "Player": "Xogador",
-      "None": "Ningún",
-      "Online players": "Xogadores en liña",
-      "Unable to start local online.": "Non se puido iniciar o xogo en liña local."
+      "None": "Ningún"
     },
     "eu": {
       "Advanced Options": "Aukera aurreratuak",
@@ -1341,9 +1315,7 @@
       "Keyboard": "Teklatua",
       "Controller": "Agintea",
       "Player": "Jokalari",
-      "None": "Bat ere ez",
-      "Online players": "Lineako jokalariak",
-      "Unable to start local online.": "Ezin izan da tokiko lineako jokoa abiarazi."
+      "None": "Bat ere ez"
     },
     "and_ES": {
       "Advanced Options": "Ôççionê abançâh",
@@ -1437,9 +1409,7 @@
       "Keyboard": "Teclao",
       "Controller": "Mando",
       "Player": "Hugadôh",
-      "None": "Ninguno",
-      "Online players": "Hugadorê online",
-      "Unable to start local online.": "No çe pudo iniçiâh el online locâh."
+      "None": "Ninguno"
     }
   }
 }

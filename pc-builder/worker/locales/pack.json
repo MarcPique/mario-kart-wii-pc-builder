@@ -40,7 +40,7 @@
   ],
   "translation_context": "whole BMG text spans; reflow after translation",
   "private_review_sha256": "5ed77ee335a2409e187411a440ec53ff472779c7f3c2c0bbbbffd2278e31b52c",
-  "reviewed_pc_entries": 1410,
+  "reviewed_pc_entries": 1380,
   "reviewed_game_spans": {
     "ca": 1543,
     "gl": 1543,

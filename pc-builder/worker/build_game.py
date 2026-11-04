@@ -125,6 +125,17 @@ def verify_disc(data):
 
 def apply_sources(work,payload):
     workspace=work/'Install/BuildWorkspace'
+    # Remove retired development-only session coordinators from a warm build.
+    # These names belong to this builder; saves, profiles and upstream files
+    # are outside this fixed list. Otherwise CMake's source glob can still link
+    # an obsolete second-client implementation after an update.
+    retired=['runtime/include/pc_local_input.h','runtime/src/pc_local_input.cpp',
+             'runtime/include/pc_local_sessions.h','runtime/src/pc_local_sessions.cpp',
+             'runtime/include/pc_local_session_control.h','runtime/include/pc_session_preferences.h']
+    for relative in retired:
+        target=workspace/relative
+        if not target.resolve().is_relative_to(workspace.resolve()):raise ValueError('Fuente obsoleta fuera del workspace')
+        if target.is_file():target.unlink()
     for p in (payload/'patches').rglob('*'):
         if p.is_file():
             target=workspace/p.relative_to(payload/'patches');target.parent.mkdir(parents=True,exist_ok=True)
@@ -158,7 +169,7 @@ def create_launcher(work,stage,log):
     icon=(workspace/'runtime/resources/MarioKartWii.ico').as_posix()
     resource.write_text(f'1 ICON "{icon}"\n',encoding='utf-8')
     run([bin/'x86_64-w64-mingw32-windres.exe',resource,work/'launcher-res.o'],work,log,'launcher-icon')
-    run([bin/'x86_64-w64-mingw32-clang++.exe','-std=c++20','-O2','-static','-municode','-mwindows','-I'+str(workspace/'runtime/include'),HERE/'portable_launcher.cpp',work/'launcher-res.o','-lole32','-lshell32','-o',stage/'Mario Kart Wii.exe'],work,log,'launcher')
+    run([bin/'x86_64-w64-mingw32-clang++.exe','-std=c++20','-O2','-static','-municode','-mwindows',HERE/'portable_launcher.cpp',work/'launcher-res.o','-lole32','-lshell32','-o',stage/'Mario Kart Wii.exe'],work,log,'launcher')
 
 def compile_native(work,log,jobs):
     w=work/'Install/BuildWorkspace';t=work/'Install/Toolkit';bin=t/'llvm-mingw/bin';deps=w/'Dependencies';cmake=t/'CMake/bin/cmake.exe';ninja=t/'Ninja/ninja.exe';build=w/'native-build'

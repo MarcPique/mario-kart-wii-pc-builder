@@ -6,6 +6,15 @@ import build_game
 from prepare_original_ui import pack,read
 
 class BuilderTests(unittest.TestCase):
+    def test_retired_multisession_sources_removed_without_touching_user_data(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root=Path(folder);work=root/'work';payload=root/'payload';(payload/'patches').mkdir(parents=True)
+            workspace=work/'Install/BuildWorkspace';old=workspace/'runtime/src/pc_local_sessions.cpp';old.parent.mkdir(parents=True);old.write_text('retired')
+            keep=workspace/'runtime/src/hle.cpp';keep.write_text('upstream')
+            save=work/'UserData/Saves/slot.dat';save.parent.mkdir(parents=True);save.write_bytes(b'own save')
+            build_game.apply_sources(work,payload)
+            self.assertFalse(old.exists());self.assertEqual(keep.read_text(),'upstream');self.assertEqual(save.read_bytes(),b'own save')
+
     def test_source_update_invalidates_newer_cached_object_only_on_content_change(self):
         with tempfile.TemporaryDirectory() as folder:
             root=Path(folder);payload=root/'payload';source=payload/'patches/runtime/src/example.cpp';source.parent.mkdir(parents=True)
