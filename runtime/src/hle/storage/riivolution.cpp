@@ -6,6 +6,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 
 #include "hle/storage/riivolution.h"
+#include "pc_my_stuff.h"
 #include "guest_abi/guest_region.h"
 
 #include "hle/riivolution_contract.h"
@@ -357,6 +358,22 @@ void RiivoInitialize() {
 } // namespace
 
 namespace RuntimeRiivolution {
+
+std::optional<MyStuffPlan> PrepareMyStuff(unsigned mode) {
+    if(!RuntimeProduct::IsRetroRewind() || mode>4)return std::nullopt;
+    const auto configured=RuntimeConfigFile::RetroRewindRoot();
+    if(configured.empty())return std::nullopt;
+    const auto root=RuntimeNandPath::ResolveConfiguredPath(configured);
+    const auto xmls=RiivoFindXmls(root);if(!xmls)return std::nullopt;
+    for(const auto& path:xmls->xmlFiles){
+        const auto text=RiivoReadFile(path);if(!text)continue;
+        const auto plan=PcMyStuff::Prepare(*text,RiivoGameId(),mode);if(!plan)continue;
+        MyStuffPlan result;result.runtimeFlag=plan->runtimeFlag;
+        RiivoCollectMappings(plan->patch,RiivoGenericText(xmls->sdRoot),RiivoGenericText(path.parent_path()),result.files);
+        return result;
+    }
+    return std::nullopt;
+}
 
 const std::vector<Overlay>& Overlays() {
     std::call_once(g_riivoOnce, RiivoInitialize);

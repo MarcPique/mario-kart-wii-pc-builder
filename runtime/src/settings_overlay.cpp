@@ -634,6 +634,37 @@ void SetKeyboardActive(uint32_t port, bool active) {
     }
 }
 
+void UpdateDefaultInputDevice() {
+    // At startup and on roster changes, physical pads take the first four
+    // ports. Keep their relative player order, compact holes after a removal,
+    // and append newly connected devices. Manual changes stay in effect until
+    // the next roster change or launch; don't fight the native assignment UI.
+    std::vector<uint32_t> devices;
+    const auto remember = [&](int32_t index) {
+        auto* pad = index >= 0 ? PADGetSDLGamepadForIndex(index) : nullptr;
+        if (!pad) return;
+        const auto id = SDL_GetGamepadID(pad);
+        if (std::find(devices.begin(), devices.end(), id) == devices.end()) devices.push_back(id);
+    };
+    for (uint32_t port=0; port<PAD_MAX_CONTROLLERS; ++port) remember(PADGetIndexForPort(port));
+    for (uint32_t index=0; index<PADCount(); ++index) remember(static_cast<int32_t>(index));
+    unsigned assigned = 0;
+    for (uint32_t port=0; port<PAD_MAX_CONTROLLERS; ++port) {
+        if (port < devices.size()) {
+            const auto index = PADGetIndexForPort(port);
+            auto* current = index >= 0 ? PADGetSDLGamepadForIndex(index) : nullptr;
+            if (!current || SDL_GetGamepadID(current) != devices[port]) {
+                if (PcControllerAssign(port, devices[port], true)) ++assigned;
+            } else if (KeyboardActive(port)) SetKeyboardActive(port, false);
+        } else {
+            const bool keyboard = port == 0 && devices.empty();
+            if (KeyboardActive(port) != keyboard) SetKeyboardActive(port, keyboard);
+        }
+    }
+    RT_LOGF("pc-input", "Automatic input: %zu gamepad(s), %u reassigned; player 1 uses %s\n",
+            std::min<size_t>(devices.size(), PAD_MAX_CONTROLLERS), assigned, devices.empty()?"keyboard":"gamepad");
+}
+
 void DrawKeyboardSettings(uint32_t port) {
     PushMenuTextWrap();
     ImGui::TextUnformatted("Default: WASD to steer, mouse left to accelerate, Space to brake.");
@@ -1411,6 +1442,7 @@ void InitializeRuntimeSettings(bool showWindowWhenReady) noexcept {
     // A fresh portable install needs usable input before reaching Options.
     if (!std::filesystem::exists(RuntimeConfigFile::ApplicationDataDirectory()/"keyboard_bindings.dat"))
         SetKeyboardActive(0, true);
+    UpdateDefaultInputDevice();
     PcOnlineRooms::Start();
     PAD_HLE_SetRumbleEnabled(g_rumbleEnabled);
     InputBindings::Reload();
@@ -1450,6 +1482,7 @@ void HandleEvents(const AuroraEvent* events) noexcept {
     for (const AuroraEvent* ev = events; ev->type != AURORA_NONE; ++ev) {
         if (ev->type == AURORA_CONTROLLER_ADDED || ev->type == AURORA_CONTROLLER_REMOVED) {
             g_configuredControllerIndices.fill(std::numeric_limits<int32_t>::min());
+            UpdateDefaultInputDevice();
         }
         if (ev->type != AURORA_SDL_EVENT) {
             continue;
@@ -1541,20 +1574,31 @@ std::vector<std::u16string> PcControllerDevices() {
     for (uint32_t i = 0; i < PADCount(); ++i) {
         const char* name = PADGetNameForControllerIndex(i);
         std::u16string label;
-        // SDL names are UTF-8. Keep ASCII device names legible even when a
-        // device reports characters missing from the game's font.
-        const std::string_view fullName = name ? name : "";
-        if (fullName.find("DualSense Edge") != std::string_view::npos) label = u"DS Edge";
-        else if (fullName.find("DualSense") != std::string_view::npos) label = u"DualSense";
-        else if (fullName.find("DualShock") != std::string_view::npos || fullName.find("PS4") != std::string_view::npos) label = u"DualShock";
-        else if (fullName.find("Nintendo Switch") != std::string_view::npos || fullName.find("Switch Pro") != std::string_view::npos) label = u"Switch Pro";
-        else if (fullName.find("Xbox") != std::string_view::npos) label = u"Xbox";
-        else if (name) for (const unsigned char* p = reinterpret_cast<const unsigned char*>(name); *p && label.size() < 9; ++p)
-            if (*p >= 32 && *p < 127) label.push_back(static_cast<char16_t>(*p));
+        // Preserve SDL's complete device name, including UTF-8 model names.
+        if (name) {
+            const char* cursor = name;
+            while (const auto code = SDL_StepUTF8(&cursor, nullptr)) {
+                if (code < 32 || code == 127) continue;
+                if (code <= 0xFFFF) label.push_back(static_cast<char16_t>(code));
+                else {
+                    label.push_back(static_cast<char16_t>(0xD800 + ((code - 0x10000) >> 10)));
+                    label.push_back(static_cast<char16_t>(0xDC00 + ((code - 0x10000) & 0x3FF)));
+                }
+            }
+        }
         if (label.empty()) label = PcMenuLocale::T(u"Mando",u"Controller",u"Manette",u"Controller",u"Controller");
         const auto number = std::to_string(i + 1);
         label += u" "; label.append(number.begin(), number.end());
         devices.push_back(std::move(label));
+    }
+    return devices;
+}
+
+std::vector<uint32_t> PcControllerDeviceIds() {
+    std::vector<uint32_t> devices{0}; // keyboard
+    for(uint32_t i=0;i<PADCount();++i){
+        auto* gamepad=PADGetSDLGamepadForIndex(i);
+        devices.push_back(gamepad?SDL_GetGamepadID(gamepad):std::numeric_limits<uint32_t>::max());
     }
     return devices;
 }
@@ -1574,8 +1618,17 @@ bool PcControllerSelected(unsigned port, unsigned device) {
     return device == 0 ? KeyboardActive(port) : !KeyboardActive(port) && PADGetIndexForPort(port) == static_cast<int32_t>(device - 1);
 }
 
-void PcControllerAssign(unsigned port, unsigned device, bool assign) {
-    if (port >= PAD_MAX_CONTROLLERS || device > PADCount()) return;
+bool PcControllerAssign(unsigned port, uint32_t deviceId, bool assign) {
+    if (port >= PAD_MAX_CONTROLLERS) return false;
+    uint32_t device=0;
+    if(assign && deviceId){
+        const auto devices=PcControllerDeviceIds();
+        const auto found=std::find(devices.begin()+1,devices.end(),deviceId);
+        if(found==devices.end())return false;
+        device=static_cast<uint32_t>(found-devices.begin());
+        auto* gamepad=PADGetSDLGamepadForIndex(device-1);
+        if(!gamepad || SDL_GetGamepadID(gamepad)!=deviceId)return false;
+    }
     if (!assign) {
         SetKeyboardActive(port, false);
         PADClearPort(port);
@@ -1588,6 +1641,7 @@ void PcControllerAssign(unsigned port, unsigned device, bool assign) {
         g_configuredControllerIndices.fill(std::numeric_limits<int32_t>::min());
         ApplyConfiguredMappings();
     }
+    return true;
 }
 
 unsigned PcGraphicsValue(unsigned sheet,unsigned row) {

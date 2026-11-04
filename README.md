@@ -31,9 +31,13 @@ Este builder genera una instalación nativa para Windows a partir de **tu propio
 
 El icono completo se obtiene **localmente del banner de tu disco**. La integración usa Retro Rewind **6.13.4**, incluido su contenido adicional y sus cambios de jugabilidad.
 
-### Cambios en desarrollo
+### Mandos, personajes y salas
 
-La copia de desarrollo añade una página nativa **Mandos** para asignar dispositivos a cuatro jugadores, consulta de versiones de Retro Rewind y «Todas las pistas» por defecto en ajustes recién creados. El DualSense Edge se ha probado por Bluetooth; otros modelos y la conexión simultánea de varios mandos físicos necesitan más pruebas. También incluye un selector de salas públicas en el menú online: se ha verificado la entrada a salas Retro y CT, pero otros modos y cambios de anfitrión aún necesitan pruebas. La última release publicada puede no incluir todavía estos cambios.
+La versión **1.0.2** incluye la página nativa **Mandos** y asignación a cuatro jugadores locales. Al abrir el juego o cambiar los dispositivos conectados, los mandos ocupan automáticamente **J1, J2, J3 y J4**, antes que el teclado. Se conserva su orden relativo y se rellenan los puestos libres; después puedes reasignarlos manualmente en Ajustes. El teclado controla J1 cuando no hay mando. El selector muestra la familia (**DualSense, DualShock, Switch Pro, Xbox**) y el panel inferior muestra el **nombre completo** del modelo; al recorrer las filas de jugadores también aparece su asignación completa. Se ha probado un **DualSense Edge por Bluetooth** y la conexión/desconexión de mandos virtuales. Otros modelos y cuatro mandos físicos simultáneos requieren pruebas en esos dispositivos.
+
+Los **personajes personalizados incluidos en Retro Rewind también se usan en las carreras locales**: selecciona un personaje y pulsa **L/R** para elegir su variante antes de confirmar. En DualSense son **L1/R1** con la configuración predeterminada. Se ha verificado **Mario (Fire) en Grand Prix**, además del modelo de selección. Esto no añade modelos externos que no formen parte del pack instalado.
+
+También incluye la consulta de versiones de Retro Rewind, «Todas las pistas» en ajustes recién creados y el selector de salas públicas. Se ha verificado la entrada a salas Retro y CT; otros modos y cambios de anfitrión necesitan más pruebas. **Hasta cuatro jugadores en multijugador local; hasta dos jugadores locales por PC en Retro WFC.** Cuatro jugadores online desde una sola conexión requerirían ampliar los paquetes del juego y la compatibilidad de los demás clientes; esta versión no lo implementa.
 
 ## Instalación
 
@@ -61,20 +65,26 @@ Capturas del juego durante las pruebas locales y de la interfaz del instalador. 
 | ![Botón en la pausa](docs/screenshots/pause-menu.png) | ![Cambio inmediato a inglés](docs/screenshots/live-language.png) |
 | **Ajustes desde la carrera** | **Presentación original** |
 | ![Opciones en pausa sin superposición](docs/screenshots/pause-settings.png) | ![Pantalla de título](docs/screenshots/title.png) |
+| **Mandos y nombre completo** | **Personaje personalizado** |
+| ![Selector DualSense y modelo completo](docs/screenshots/controllers.png) | ![Mario Fire en selección](docs/screenshots/custom-character.png) |
+
+<p align="center"><img src="docs/screenshots/custom-character-race.png" width="800" alt="Mario Fire dentro de una carrera de Grand Prix local"></p>
 
 ## Dentro del juego
 
-En la selección de carné, entra en **Opciones → Opciones avanzadas**. En una carrera local, abre la pausa y elige **Opciones avanzadas**. El botón inferior cambia entre **Pantalla**, **Calidad gráfica** e **Idioma**.
+En la selección de carné, entra en **Opciones → Opciones avanzadas**. En una carrera local, abre la pausa y elige **Opciones avanzadas**. El botón inferior cambia entre **Pantalla**, **Calidad gráfica**, **Idioma**, **Mandos** y **Actualizaciones**. En Mandos elige el dispositivo y pulsa **Asignar** en el jugador deseado; **Vaciar** libera su puesto.
 
 Puedes cambiar resolución interna y de ventana, modo de pantalla, formato, V-Sync, FPS, bloom, MSAA 4x, anisotropía, nitidez, interpolación, vibración y silencio. Presets: **Original Wii, Bajo, Medio, Alto y Ultra**.
 
-**El idioma cambia al instante**, incluidos los textos de menús ya abiertos y el nombre del botón. En la versión de desarrollo, AA y anisotropía también se aplican sin reiniciar; se han probado en una GPU y falta verificar otras. Bloom se aplica al cargar una escena. Las demás opciones se aplican en vivo cuando lo permite el renderizador.
+**El idioma cambia al instante**, incluidos los textos de menús ya abiertos y el nombre del botón. AA y anisotropía también se aplican sin reiniciar; se han probado en una GPU y falta verificar otras. Bloom se aplica al cargar una escena. Las demás opciones se aplican en vivo cuando lo permite el renderizador.
 
 ## Online habilitado
 
 El online viene habilitado mediante **Retro WFC**, con la integración de Retro Rewind 6.13.4. Entra en **Retro WFC** desde el menú del juego. Login, amigos y salas utilizan sus menús nativos en el mismo proceso. Se han probado el login y la creación y cierre de una sala de amigos. La disponibilidad y las normas dependen de [Retro WFC](https://rwfc.net/).
 
-El contador muestra el estado de las salas; la versión de desarrollo también ofrece el botón **Salas** para elegir una sala pública compatible. La versión publicada puede carecer de este selector. El juego dispone de emparejamiento mundial y salas de amigos. Los circuitos personalizados pueden habilitarse en **Un jugador → Ajustes → Carrera → Selección de pistas → Todas las pistas**. Las variantes de personaje se cambian con L/R en la pantalla de personajes.
+El contador muestra el estado de las salas y el botón **Salas** permite elegir una sala pública compatible. El juego dispone también de emparejamiento mundial y salas de amigos. Los circuitos personalizados pueden habilitarse en **Un jugador → Ajustes → Carrera → Selección de pistas → Todas las pistas**. Las variantes de personaje se cambian con L/R en la pantalla de personajes, también para jugar carreras locales.
+
+**Pendiente:** selector My Stuff, cambio de partida separada sin reiniciar, actualización de código durante la sesión y cuatro jugadores locales dentro del online. La comprobación de versiones avisa de una actualización, pero no reemplaza el código del juego en ejecución. La preparación experimental del sistema My Stuff permanece desactivada en los arranques normales.
 
 ## Archivos y partidas
 

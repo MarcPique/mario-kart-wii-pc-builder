@@ -83,6 +83,13 @@ struct FstFileEntry {
 
 // Global State
 static std::vector<DVDFileEntry> g_fileEntries;
+static std::vector<DVDFileEntry> g_myStuffBaseEntries;
+// Open DVD handles resolve through their original disc range, independently
+// of the active path table used for subsequent opens.
+static std::vector<DVDFileEntry> g_extentEntries;
+static std::vector<std::string> g_myStuffUnionPaths;
+static std::vector<std::pair<std::string,bool>> g_myStuffLayout;
+static bool g_myStuffLive=false;
 static std::map<std::string, int32_t> g_pathToEntry;
 // Maps each published file's disc range back to its runtime entry.
 struct PublishedExtent {
@@ -399,7 +406,7 @@ static bool ResolveAbsRead(uint32_t offset, uint32_t length, AbsReadResult& out)
         return false;
     }
 
-    const DVDFileEntry& entry = g_fileEntries[extent->entryIndex];
+    const DVDFileEntry& entry = g_extentEntries[extent->entryIndex];
     const uint32_t fileOffset = static_cast<uint32_t>(effectiveOffset - extent->startBytes);
     uint32_t readLength = length;
     if (readLength == 0 || fileOffset + readLength > entry.size) {
@@ -417,7 +424,9 @@ static std::string NormalizePath(const std::string& path) {
     return DvdFstContract::NormalizeLookupPath(path);
 }
 
-static void RegisterFileEntry(std::string dvdPath, const fs::path& hostPath, uint32_t size) {
+static void RegisterFileEntry(std::string dvdPath, const fs::path& hostPath, uint32_t size,
+                              std::vector<DVDFileEntry>& entries=g_fileEntries,
+                              std::map<std::string,int32_t>& paths=g_pathToEntry) {
     dvdPath = DvdFstContract::CanonicalizePath(dvdPath);
 
     DVDFileEntry fileEntry;
@@ -425,16 +434,16 @@ static void RegisterFileEntry(std::string dvdPath, const fs::path& hostPath, uin
     fileEntry.dvdPath = dvdPath;
     fileEntry.size = size;
 
-    const int32_t entryNum = static_cast<int32_t>(g_fileEntries.size());
-    g_fileEntries.push_back(std::move(fileEntry));
-    g_pathToEntry[NormalizePath(dvdPath)] = entryNum;
+    const int32_t entryNum = static_cast<int32_t>(entries.size());
+    entries.push_back(std::move(fileEntry));
+    paths[NormalizePath(dvdPath)] = entryNum;
 }
 
 // True when a disc path already has an entry (vanilla disc or an earlier
 // overlay registration). Uses the same canonicalization as RegisterFileEntry.
-static bool DvdEntryExists(const std::string& dvdPath) {
-    return g_pathToEntry.find(NormalizePath(DvdFstContract::CanonicalizePath(dvdPath))) !=
-           g_pathToEntry.end();
+static bool DvdEntryExists(const std::string& dvdPath,
+                           const std::map<std::string,int32_t>& paths=g_pathToEntry) {
+    return paths.find(NormalizePath(DvdFstContract::CanonicalizePath(dvdPath))) != paths.end();
 }
 
 // Walk `root` and hand every entry to `visit`. Uses the error_code iterator forms so an
@@ -487,7 +496,9 @@ static void WalkDirectory(const fs::path& root, bool recursive, bool announceErr
 // addNewFiles=false is Riivolution's create="false": only files already on
 // the disc may be replaced, nothing new is added.
 static void ScanDirectory(const fs::path& root, const std::string& virtualPrefix,
-                          bool recursive = true, bool addNewFiles = true) {
+                          bool recursive = true, bool addNewFiles = true,
+                          std::vector<DVDFileEntry>& entries=g_fileEntries,
+                          std::map<std::string,int32_t>& paths=g_pathToEntry) {
     std::error_code ec;
     if (!fs::exists(root, ec)) {
         return;
@@ -516,10 +527,10 @@ static void ScanDirectory(const fs::path& root, const std::string& virtualPrefix
             prefix += "/";
         }
         std::string dvdPath = prefix + HostPathText(relative);
-        if (!addNewFiles && !DvdEntryExists(dvdPath)) {
+        if (!addNewFiles && !DvdEntryExists(dvdPath,paths)) {
             return;
         }
-        RegisterFileEntry(std::move(dvdPath), entry.path(), static_cast<uint32_t>(size));
+        RegisterFileEntry(std::move(dvdPath), entry.path(), static_cast<uint32_t>(size),entries,paths);
     };
 
     WalkDirectory(root, recursive, /*announceErrors=*/true, registerEntry);
@@ -528,13 +539,15 @@ static void ScanDirectory(const fs::path& root, const std::string& virtualPrefix
 // Riivolution <folder> without a disc path: replace disc files that share a
 // filename with a file in the external folder (Dolphin's
 // FindFilenameNodeInFST behavior, applied across the whole index).
-static void ApplyFolderByNameMapping(const RuntimeRiivolution::Mapping& mapping) {
+static void ApplyFolderByNameMapping(const RuntimeRiivolution::Mapping& mapping,
+                                     std::vector<DVDFileEntry>& entries=g_fileEntries,
+                                     std::map<std::string,int32_t>& paths=g_pathToEntry) {
     // Snapshot the current index: matches by filename may only target entries
     // that exist before this mapping, and RegisterFileEntry appends.
     std::map<std::string, std::vector<std::string>> discPathsByName;
-    const size_t entryCount = g_fileEntries.size();
+    const size_t entryCount = entries.size();
     for (size_t i = 0; i < entryCount; ++i) {
-        const std::string& dvdPath = g_fileEntries[i].dvdPath;
+        const std::string& dvdPath = entries[i].dvdPath;
         const size_t lastSlash = dvdPath.rfind('/');
         std::string name = lastSlash == std::string::npos ? dvdPath : dvdPath.substr(lastSlash + 1);
         RuntimeHle::LowerInPlace(name);
@@ -560,7 +573,7 @@ static void ApplyFolderByNameMapping(const RuntimeRiivolution::Mapping& mapping)
             return;
         }
         for (const std::string& dvdPath : matches->second) {
-            RegisterFileEntry(dvdPath, entry.path(), static_cast<uint32_t>(size));
+            RegisterFileEntry(dvdPath, entry.path(), static_cast<uint32_t>(size),entries,paths);
             ++replaced;
         }
     };
@@ -571,38 +584,148 @@ static void ApplyFolderByNameMapping(const RuntimeRiivolution::Mapping& mapping)
               << " disc file(s) by filename" << std::endl;
 }
 
-static void ScanOverlayRoot(const RuntimeRiivolution::Overlay& overlay) {
+static void ScanOverlayRoot(const RuntimeRiivolution::Overlay& overlay,
+                             std::vector<DVDFileEntry>& entries=g_fileEntries,
+                             std::map<std::string,int32_t>& paths=g_pathToEntry) {
     if (!overlay.patches) {
         // Fallback for mod roots that mirror the disc filesystem directly (not a
         // Riivolution pack, which wouldn't map anything useful this way).
         RT_LOG(RT_TAG_DVD) << HostPathText(overlay.root)
                   << ": no Riivolution XML found, treating the root as a disc-shaped overlay"
                   << std::endl;
-        ScanDirectory(overlay.root, "/");
+        ScanDirectory(overlay.root, "/",true,true,entries,paths);
         return;
     }
 
     for (const auto& mapping : overlay.patches->mappings) {
         switch (mapping.kind) {
         case RuntimeRiivolution::Mapping::Kind::File: {
-            if (!mapping.create && !DvdEntryExists(mapping.discPath)) {
+            if (!mapping.create && !DvdEntryExists(mapping.discPath,paths)) {
                 break;
             }
             std::error_code ec;
             const std::uintmax_t size = fs::file_size(mapping.hostPath, ec);
             if (!ec) {
-                RegisterFileEntry(mapping.discPath, mapping.hostPath, static_cast<uint32_t>(size));
+                RegisterFileEntry(mapping.discPath, mapping.hostPath, static_cast<uint32_t>(size),entries,paths);
             }
             break;
         }
         case RuntimeRiivolution::Mapping::Kind::Folder:
-            ScanDirectory(mapping.hostPath, mapping.discPath, mapping.recursive, mapping.create);
+            ScanDirectory(mapping.hostPath, mapping.discPath, mapping.recursive, mapping.create,entries,paths);
             break;
         case RuntimeRiivolution::Mapping::Kind::FolderByName:
-            ApplyFolderByNameMapping(mapping);
+            ApplyFolderByNameMapping(mapping,entries,paths);
             break;
         }
     }
+}
+
+struct PreparedMyStuffImage {
+    DvdFstContract::Image image;
+    uint8_t runtimeFlag=0;
+    size_t changedFiles=0,newFiles=0;
+    bool stableIndices=false;
+};
+
+// Build a candidate entirely in host memory. Publishing it is a separate step:
+// existing DVD handles must retain the extents they were originally opened on.
+static std::optional<PreparedMyStuffImage> PrepareMyStuffImage(unsigned mode) {
+    const auto plan=RuntimeRiivolution::PrepareMyStuff(mode);
+    if(!plan || g_myStuffBaseEntries.empty())return std::nullopt;
+    auto entries=g_myStuffBaseEntries;
+    std::map<std::string,int32_t> paths;
+    for(size_t i=0;i<entries.size();++i)paths[NormalizePath(entries[i].dvdPath)]=static_cast<int32_t>(i);
+    RuntimeRiivolution::Overlay overlay;overlay.patches=plan->files;
+    ScanOverlayRoot(overlay,entries,paths);
+    // Reserve the same path set for all modes. Empty host paths mark files
+    // which must be hidden from DVD opens while their mode is inactive.
+    for(const auto& path:g_myStuffUnionPaths)
+        if(!DvdEntryExists(path,paths))RegisterFileEntry(path,{},0,entries,paths);
+    uint64_t next=0;
+    for(const auto& extent:g_publishedExtents)next=std::max(next,extent.endBytes);
+    std::vector<DvdFstContract::RegisteredFile> registrations;
+    for(auto& entry:entries){
+        if(entry.isDirectory)continue;
+        if(!entry.discOffsetWords){
+            next=(next+31ull)&~31ull;
+            if(next/4ull>UINT32_MAX || entry.size>UINT64_C(0x400000000)-next)return std::nullopt;
+            entry.discOffsetWords=static_cast<uint32_t>(next/4ull);
+            next+=std::max<uint32_t>(entry.size,4);
+        }
+        registrations.push_back({entry.hostPath,entry.dvdPath,entry.size,entry.discOffsetWords});
+    }
+    PreparedMyStuffImage result;result.runtimeFlag=plan->runtimeFlag;
+    try{result.image=DvdFstContract::BuildImage(registrations);}catch(const std::exception&){return std::nullopt;}
+    if(result.image.bytes.size()>g_dvdFstReservedSize)return std::nullopt;
+    const auto layoutSize=g_myStuffLayout.empty()?g_myStuffBaseEntries.size():g_myStuffLayout.size();
+    result.stableIndices=result.image.entries.size()==layoutSize;
+    for(size_t i=0;i<result.image.entries.size();++i){
+        const auto& entry=result.image.entries[i];
+        const bool same=g_myStuffLayout.empty()
+            ?i<g_myStuffBaseEntries.size()&&entry.dvdPath==g_myStuffBaseEntries[i].dvdPath&&entry.isDirectory==g_myStuffBaseEntries[i].isDirectory
+            :i<g_myStuffLayout.size()&&entry.dvdPath==g_myStuffLayout[i].first&&entry.isDirectory==g_myStuffLayout[i].second;
+        if(!same)result.stableIndices=false;
+        if(entry.isDirectory||entry.hostPath.empty())continue;
+        const auto previous=g_pathToEntry.find(NormalizePath(entry.dvdPath));
+        if(previous==g_pathToEntry.end())++result.newFiles;
+        else {const auto& old=g_fileEntries[previous->second];if(old.hostPath!=entry.hostPath || old.size!=entry.size)++result.changedFiles;}
+    }
+    return result;
+}
+
+static bool PrepareMyStuffUnionLayout(){
+    std::vector<std::string> discovered;
+    for(unsigned mode=1;mode<=4;++mode){
+        const auto candidate=PrepareMyStuffImage(mode);if(!candidate)return false;
+        for(const auto& entry:candidate->image.entries)
+            if(!entry.isDirectory&&!g_pathToEntry.contains(NormalizePath(entry.dvdPath)))discovered.push_back(entry.dvdPath);
+    }
+    std::sort(discovered.begin(),discovered.end());
+    discovered.erase(std::unique(discovered.begin(),discovered.end()),discovered.end());
+    g_myStuffUnionPaths=std::move(discovered);
+    const auto disabled=PrepareMyStuffImage(0);
+    if(!disabled){g_myStuffUnionPaths.clear();return false;}
+    g_myStuffLayout.clear();
+    for(const auto& entry:disabled->image.entries)g_myStuffLayout.emplace_back(entry.dvdPath,entry.isDirectory);
+    return true;
+}
+
+extern "C" bool DVDMyStuffEntryVisible(int32_t index){
+    if(!g_myStuffLive)return true;
+    return index>=0&&static_cast<size_t>(index)<g_fileEntries.size()&&
+        (g_fileEntries[index].isDirectory||!g_fileEntries[index].hostPath.empty());
+}
+
+// Called on the guest thread. Allocate/validate all host state before changing
+// the guest FST; retain every published range for handles opened previously.
+static bool PublishMyStuffImage(PreparedMyStuffImage candidate){
+    if(!candidate.stableIndices||!g_dvdFstReservedBase||candidate.image.bytes.size()>g_dvdFstReservedSize||!Memory::Contains(g_dvdFstReservedBase,g_dvdFstReservedSize))return false;
+    auto versions=g_extentEntries;auto extents=g_publishedExtents;
+    std::vector<DVDFileEntry> active;active.reserve(candidate.image.entries.size());
+    for(const auto& entry:candidate.image.entries){
+        active.push_back({entry.hostPath,entry.dvdPath,entry.size,entry.discOffsetWords,entry.isDirectory});
+        if(entry.isDirectory||entry.hostPath.empty())continue;
+        const uint64_t start=entry.discOffsetWords*UINT64_C(4),end=start+std::max<uint32_t>(entry.size,1);
+        const auto existing=std::find_if(extents.begin(),extents.end(),[&](const auto& range){return range.startBytes==start;});
+        if(existing!=extents.end()){
+            const auto& old=versions[existing->entryIndex];
+            if(old.hostPath!=entry.hostPath||old.size!=entry.size)return false;
+            continue;
+        }
+        if(versions.size()>=65536)return false;
+        const auto index=static_cast<int32_t>(versions.size());versions.push_back(active.back());extents.push_back({start,end,index});
+    }
+    std::sort(extents.begin(),extents.end(),[](const auto& a,const auto& b){return a.startBytes<b.startBytes;});
+    for(size_t i=0;i<candidate.image.bytes.size();++i)Memory::Write8(g_dvdFstReservedBase+static_cast<uint32_t>(i),candidate.image.bytes[i]);
+    Memory::Write32(0x8000003Cu,static_cast<uint32_t>(candidate.image.bytes.size()));
+    Memory::Write8(0x80001200u,candidate.runtimeFlag);
+    g_fileEntries.swap(active);g_pathToEntry.swap(candidate.image.pathToEntry);g_extentEntries.swap(versions);g_publishedExtents.swap(extents);g_myStuffLive=true;
+    return true;
+}
+
+extern "C" bool DVDMyStuffSwitchForTest(unsigned mode){
+    if(!std::getenv("MKW_PC_MY_STUFF_LIVE_TEST")||!g_myStuffLive)return false;
+    const auto candidate=PrepareMyStuffImage(mode);return candidate&&PublishMyStuffImage(*candidate);
 }
 
 static fs::path ResolveDvdMappedHostPath(const std::string& dvdPath, const fs::path& fallbackHostPath) {
@@ -689,6 +812,7 @@ static void BuildAndPublishRuntimeFst() {
     g_pathToEntry = std::move(image.pathToEntry);
 
     g_publishedExtents.clear();
+    g_extentEntries=g_fileEntries;
     g_publishedExtents.reserve(g_fileEntries.size());
     for (size_t i = 0; i < g_fileEntries.size(); ++i) {
         const DVDFileEntry& entry = g_fileEntries[i];
@@ -853,6 +977,33 @@ extern "C" void DVDInit_8015EA1C()
     // Load FST mapping so real files keep their physical disc extents.
     LoadFstIndex();
     BuildAndPublishRuntimeFst();
+    g_myStuffBaseEntries=g_fileEntries;
+    if(std::getenv("MKW_PC_MY_STUFF_LIVE_TEST")){
+        if(PrepareMyStuffUnionLayout()){
+            const auto disabled=PrepareMyStuffImage(0);
+            RT_LOGF("pc-my-stuff-test","initial common layout published: %u\n",disabled&&PublishMyStuffImage(*disabled)?1:0);
+        }
+    }
+    if(std::getenv("MKW_PC_MY_STUFF_PLAN_TEST")){
+        RT_LOGF("pc-my-stuff-test","common layout prepared: %u\n",PrepareMyStuffUnionLayout()?1:0);
+        const auto probe=std::find_if(g_fileEntries.begin(),g_fileEntries.end(),[](const auto& entry){
+            if(entry.isDirectory||!entry.size||!entry.discOffsetWords||entry.discOffsetWords*UINT64_C(4)>UINT32_MAX)return false;
+            AbsReadResult before;return ResolveAbsRead(entry.discOffsetWords*4u,1,before)&&before.entry->hostPath==entry.hostPath&&before.entry->size==entry.size;
+        });
+        if(probe!=g_fileEntries.end()){
+            struct RestoreEntry {DVDFileEntry& entry;DVDFileEntry saved;~RestoreEntry(){std::swap(entry,saved);}} restore{*probe,*probe};
+            const auto offset=probe->discOffsetWords*UINT64_C(4);
+            probe->hostPath=fs::path("__unpublished_active_path__");probe->size=0;
+            AbsReadResult resolved;std::vector<uint8_t> bytes;DvdReadContract::HostReadFailure failure;
+            const bool isolated=offset<=UINT32_MAX&&ResolveAbsRead(static_cast<uint32_t>(offset),1,resolved)&&resolved.entry->hostPath==restore.saved.hostPath&&resolved.entry->size==restore.saved.size&&DvdReadContract::ReadExact(resolved.entry->hostPath,0,1,bytes,failure);
+            RT_LOGF("pc-my-stuff-test","existing open range retains original file: %u\n",isolated?1:0);
+        }else RT_LOGF("pc-my-stuff-test","no unambiguous 32-bit absolute read range available for probe\n");
+        for(unsigned mode=0;mode<=4;++mode){const auto candidate=PrepareMyStuffImage(mode);
+            const bool unchanged=g_fileEntries.size()==g_myStuffBaseEntries.size()&&std::equal(g_fileEntries.begin(),g_fileEntries.end(),g_myStuffBaseEntries.begin(),[](const auto& a,const auto& b){return a.hostPath==b.hostPath&&a.dvdPath==b.dvdPath&&a.size==b.size&&a.discOffsetWords==b.discOffsetWords;});
+            if(candidate)RT_LOGF("pc-my-stuff-test","mode %u: changed=%zu new=%zu stable-indices=%u active-unchanged=%u; not published\n",mode,candidate->changedFiles,candidate->newFiles,candidate->stableIndices?1:0,unchanged?1:0);
+            else RT_LOGF("pc-my-stuff-test","mode %u: preparation unavailable; not published\n",mode);
+        }
+    }
 
     // Initialize the translated DVD filesystem so it can use the published FST.
     const uint32_t kDvdFsInitAddress = MKW_GADDR(8015DF1C);
@@ -890,7 +1041,7 @@ extern "C" int32_t DVDReadPrio_8015E834(uint32_t fileInfoPtr, uint32_t bufferPtr
                             "DVD file info does not reference a published FST extent");
     }
 
-    const DVDFileEntry& entry = g_fileEntries[extent->entryIndex];
+    const DVDFileEntry& entry = g_extentEntries[extent->entryIndex];
 
     if (offset < 0 || length < 0) {
         return DvdReadFatal(fileInfoPtr, HostPathText(entry.hostPath), offset,

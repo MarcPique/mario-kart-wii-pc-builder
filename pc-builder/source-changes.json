@@ -11,6 +11,7 @@
   "runtime/src/product/retro_rewind_product.cpp",
   "runtime/src/hle/sc.cpp",
   "runtime/src/hle/storage/riivolution.cpp",
+  "runtime/src/hle/storage/dvd.cpp",
   "runtime/src/hle/storage/nand_isfs.cpp",
   "runtime/src/hle/input/pad.cpp",
   "runtime/resources/RetroRewind.rc",
@@ -25,6 +26,8 @@
   "runtime/include/pc_rr_update_manifest.h",
   "runtime/include/pc_room_parser.h",
   "runtime/include/pc_room_order.h",
+  "runtime/include/pc_my_stuff.h",
+  "runtime/src/hle/storage/riivolution.h",
   "runtime/include/pc_menu_locale.h",
   "runtime/include/pc_live_locale.h",
   "runtime/cmake/PublicProducts.cmake"

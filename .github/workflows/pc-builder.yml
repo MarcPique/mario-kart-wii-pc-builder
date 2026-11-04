@@ -23,6 +23,8 @@ jobs:
         run: g++ -std=c++20 -O2 -Iruntime/include runtime/tests/pc_retro_defaults_tests.cpp -o /tmp/retro-defaults && /tmp/retro-defaults
       - name: Retro Rewind update manifest
         run: g++ -std=c++20 -O2 -Iruntime/include runtime/tests/pc_rr_update_manifest_tests.cpp -o /tmp/retro-updates && /tmp/retro-updates
+      - name: My Stuff patch selection
+        run: g++ -std=c++20 -O2 -Iruntime/include -Iruntime/third_party/pugixml runtime/tests/pc_my_stuff_tests.cpp runtime/third_party/pugixml/pugixml.cpp -o /tmp/my-stuff && /tmp/my-stuff
   windows-installer:
     runs-on: windows-latest
     steps:

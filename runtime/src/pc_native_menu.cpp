@@ -15,6 +15,7 @@
 #include <cmath>
 #include <unordered_set>
 #include <charconv>
+extern "C" bool DVDMyStuffEntryVisible(int32_t index);
 namespace {
 constexpr uint32_t kLabel=0x7E000000u,kPcButtonId=0x7F00;
 struct Resource {std::array<uint32_t,6> args;};
@@ -51,6 +52,7 @@ std::array<uint32_t,5> roomOriginalHandler{};
 struct RoomButtonState {uint32_t address;uint8_t hidden,inaccessible;};
 std::vector<RoomButtonState> roomButtonStates;
 std::vector<std::u16string> visibleControllers;
+std::vector<uint32_t> visibleControllerIds;
 std::string visibleUpdateState;
 bool creatingPc=false,closingPc=false;
 bool backgroundAdded=false;
@@ -87,6 +89,20 @@ presets={u"Original Wii",T(u"Bajo",u"Low",u"Faible",u"Niedrig",u"Bassa"),T(u"Med
 }
 void Bottom(CpuContext* ctx,const std::u16string& value){if(activePage)Text(ctx,Memory::Read32(activePage+0x2BC),80,value);}
 std::u16string ControllersTitle(){return T(u"Mandos",u"Controllers",u"Manettes",u"Controller",u"Controller");}
+std::vector<std::u16string> ControllerChoices(const std::vector<std::u16string>& devices){
+    auto result=devices;
+    // The original scroller has a small glyph buffer. Show the device family
+    // here and its complete SDL model in the wide native detail panel.
+    for(size_t i=1;i<result.size();++i){const auto& name=devices[i];
+        if(name.find(u"DualSense")!=std::u16string::npos)result[i]=u"DualSense";
+        else if(name.find(u"DualShock")!=std::u16string::npos||name.find(u"PS4")!=std::u16string::npos)result[i]=u"DualShock";
+        else if(name.find(u"Switch")!=std::u16string::npos)result[i]=u"Switch Pro";
+        else if(name.find(u"Xbox")!=std::u16string::npos||name.find(u"XInput")!=std::u16string::npos)result[i]=u"Xbox";
+    }
+    const auto families=result;
+    for(size_t i=1;i<result.size();++i)if(std::count(families.begin()+1,families.end(),families[i])>1){const auto number=std::to_string(std::count(families.begin()+1,families.begin()+i,families[i])+1);result[i]+=u" ";result[i].append(number.begin(),number.end());}
+    return result;
+}
 std::u16string UpdatesTitle(){return T(u"Actualizaciones",u"Updates",u"Mises à jour",u"Updates",u"Aggiornamenti");}
 std::u16string RoomsTitle(){return T(u"Salas publicas",u"Public rooms",u"Salles publiques",u"Öffentliche Räume",u"Stanze pubbliche");}
 void RefreshRoomChoices(){
@@ -161,10 +177,11 @@ void Configure(CpuContext* ctx,uint32_t page) {
     Memory::Write32(page+0x3E4,Label(1,title));Text(ctx,Memory::Read32(page+0x2B8),1,title);
     const auto devices=settings_overlay::PcControllerDevices();
     visibleControllers=devices;
+    visibleControllerIds=settings_overlay::PcControllerDeviceIds();
     selectedController=std::min<unsigned>(selectedController,devices.size()-1);
     auto controllerChoices=choices2;
     auto controllerNames=names2;
-    for(unsigned i=0;i<4;++i){controllerNames[i]=settings_overlay::PcControllerPlayerName(i);controllerChoices[i]={T(u"Vaciar",u"Clear",u"Effacer",u"Leeren",u"Cancella"),T(u"Asignar",u"Assign",u"Attribuer",u"Zuordnen",u"Assegna")};}
+    for(unsigned i=0;i<4;++i){controllerNames[i]=T(u"Jugador ",u"Player ",u"Joueur ",u"Spieler ",u"Giocatore ");controllerNames[i].push_back(static_cast<char16_t>(u'1'+i));controllerChoices[i]={T(u"Vaciar",u"Clear",u"Effacer",u"Leeren",u"Cancella"),T(u"Asignar",u"Assign",u"Attribuer",u"Zuordnen",u"Assegna")};}
     auto updateChoices=choices2;auto updateNames=names2;
     updateNames[0]=T(u"Comprobacion",u"Version check",u"Vérification",u"Versionsprüfung",u"Verifica");
     updateChoices[0]={T(u"Revisar",u"Check",u"Vérifier",u"Prüfen",u"Verifica")};
@@ -182,7 +199,8 @@ void Configure(CpuContext* ctx,uint32_t page) {
         RT_LOGF("pc-options","Native row %u supports %u choices\n",i,originalRadioCounts[i]);
     }
     const std::vector<std::u16string> updateValues{PcOnlineRooms::UpdateSummary()};
-    const auto scroller=page+0x13BC;const auto& values=sheet==5?roomValues:sheet==4?updateValues:sheet==3?devices:sheet==2?PcMenuLocale::Languages:sheet==1?presets:scales;
+    const auto controllerValues=ControllerChoices(devices);
+    const auto scroller=page+0x13BC;const auto& values=sheet==5?roomValues:sheet==4?updateValues:sheet==3?controllerValues:sheet==2?PcMenuLocale::Languages:sheet==1?presets:scales;
     const auto position=sheet==5?selectedRoom:sheet==4?0u:sheet==3?selectedController:settings_overlay::PcGraphicsScroller(sheet);
     Invoke(ctx,MKW_GADDR(8063F0C0),{scroller,static_cast<uint32_t>(values.size()),position});
     Text(ctx,scroller,50,sheet==5?RoomsTitle():sheet==4?T(u"Version",u"Version",u"Version",u"Version",u"Versione"):sheet==3?T(u"Dispositivo",u"Device",u"Appareil",u"Gerät",u"Dispositivo"):sheet==2?PcMenuLocale::Language():sheet==1?T(u"Calidad",u"Quality",u"Qualité",u"Qualität",u"Qualità"):T(u"Resolucion interna",u"Internal Resolution",u"Résolution interne",u"Interne Auflösung",u"Risoluzione interna"));
@@ -193,6 +211,7 @@ void Configure(CpuContext* ctx,uint32_t page) {
     if(const auto bottom=Memory::Read32(page+0x2BC);bottom){const auto ownerId=ownerPage?Memory::Read32(ownerPage+4):0;Memory::Write8(bottom+0x80,ownerId>=0x17&&ownerId<=0x1A);}
     if(sheet==4)visibleUpdateState=UpdateStateKey();
     Bottom(ctx,sheet==5?T(u"Elige una sala publica. B: volver.",u"Choose a public room. B: back.",u"Choisissez une salle. B : retour.",u"Raum wählen. B: zurück.",u"Scegli una stanza. B: indietro."):sheet==4?UpdateDetail():sheet==3?T(u"Elige un dispositivo y asignalo a un jugador.",u"Choose a device and assign it to a player.",u"Choisissez un appareil et un joueur.",u"Gerät und Spieler auswählen.",u"Scegli dispositivo e giocatore."):sheet==2?T(u"El idioma cambia inmediatamente. Guardado automatico.",u"Language changes immediately. Saved automatically.",u"Changement de langue immédiat. Sauvegarde auto.",u"Sprache wird sofort geändert. Automatisch gespeichert.",u"La lingua cambia subito. Salvataggio automatico."):T(u"Guardado automatico. B: volver.",u"Saved automatically. B: back.",u"Sauvegarde auto. B : retour.",u"Automatisch gespeichert. B: zurück.",u"Salvataggio automatico. B: indietro."));
+    if(sheet==3)Bottom(ctx,devices[selectedController]);
 }
 void Open(CpuContext* ctx,uint32_t owner,bool rooms=false) {
     if(activePage)return;ownerPage=owner;sheet=rooms?5:0;closingPc=false;if(rooms){selectedRoom=0;RefreshRoomChoices();PcOnlineRooms::Refresh();}
@@ -333,13 +352,13 @@ extern "C" void PcSettingsButton(CpuContext* ctx){if(ctx->gpr[3]!=activePage){MK
 REGISTER_NATIVE_WRAPPER_AS(0x80853654,PcSettingsButton,"PcOriginalUI_GraphicsSheet");
 extern "C" void PcSettingsBack(CpuContext* ctx){if(ctx->gpr[3]==activePage)Close(ctx,activePage);else MKW_GUEST_NEXT(808536B4)(ctx);}
 REGISTER_NATIVE_WRAPPER_AS(0x808536B4,PcSettingsBack,"PcOriginalUI_GraphicsBack");
-extern "C" void PcRadioClick(CpuContext* ctx){if(ctx->gpr[3]!=activePage){MKW_GUEST_NEXT(80853714)(ctx);return;}auto row=Memory::Read32(ctx->gpr[4]+0x20C);if(sheet==5){if(row==0&&selectedRoom<roomIds.size()){pendingRoomId=roomIds[selectedRoom];RT_LOGF("pc-ui-test","Public room selected in native menu\n");Close(ctx,activePage);}}else if(sheet==4){if(row==0){PcOnlineRooms::RefreshUpdates();Bottom(ctx,UpdateDetail());}}else if(sheet==3&&row<4){settings_overlay::PcControllerAssign(row,selectedController,ctx->gpr[6]!=0);Configure(ctx,activePage);}else if(row<5&&sheet<3)settings_overlay::SetPcGraphicsValue(sheet,row,ctx->gpr[6]);}
+extern "C" void PcRadioClick(CpuContext* ctx){if(ctx->gpr[3]!=activePage){MKW_GUEST_NEXT(80853714)(ctx);return;}auto row=Memory::Read32(ctx->gpr[4]+0x20C);if(sheet==5){if(row==0&&selectedRoom<roomIds.size()){pendingRoomId=roomIds[selectedRoom];RT_LOGF("pc-ui-test","Public room selected in native menu\n");Close(ctx,activePage);}}else if(sheet==4){if(row==0){PcOnlineRooms::RefreshUpdates();Bottom(ctx,UpdateDetail());}}else if(sheet==3&&row<4){const bool assigned=selectedController<visibleControllerIds.size()&&settings_overlay::PcControllerAssign(row,visibleControllerIds[selectedController],ctx->gpr[6]!=0);Configure(ctx,activePage);if(!assigned)Bottom(ctx,T(u"Mando desconectado. Elige otro dispositivo.",u"Controller disconnected. Choose another device.",u"Manette déconnectée. Choisissez un appareil.",u"Controller getrennt. Anderes Gerät wählen.",u"Controller scollegato. Scegli un altro dispositivo."));}else if(row<5&&sheet<3)settings_overlay::SetPcGraphicsValue(sheet,row,ctx->gpr[6]);}
 REGISTER_NATIVE_WRAPPER_AS(0x80853714,PcRadioClick,"PcOriginalUI_GraphicsChoice");
-extern "C" void PcRadioSelect(CpuContext* ctx){if(ctx->gpr[3]!=activePage){MKW_GUEST_NEXT(8085389C)(ctx);return;}Bottom(ctx,sheet==4?UpdateDetail():T(u"Izquierda/derecha y A: elegir. B: volver.",u"Left/right and A: select. B: back.",u"Gauche/droite et A : choisir. B : retour.",u"Links/rechts und A: wählen. B: zurück.",u"Sinistra/destra e A: scegli. B: indietro."));}
+extern "C" void PcRadioSelect(CpuContext* ctx){if(ctx->gpr[3]!=activePage){MKW_GUEST_NEXT(8085389C)(ctx);return;}const auto row=Memory::Read32(ctx->gpr[4]+0x20C);Bottom(ctx,sheet==3&&row<4?settings_overlay::PcControllerPlayerName(row):sheet==4?UpdateDetail():T(u"Izquierda/derecha y A: elegir. B: volver.",u"Left/right and A: select. B: back.",u"Gauche/droite et A : choisir. B : retour.",u"Links/rechts und A: wählen. B: zurück.",u"Sinistra/destra e A: scegli. B: indietro."));}
 REGISTER_NATIVE_WRAPPER_AS(0x8085389C,PcRadioSelect,"PcOriginalUI_GraphicsHint");
 extern "C" void PcScrollChange(CpuContext* ctx){if(ctx->gpr[3]!=activePage){MKW_GUEST_NEXT(80853998)(ctx);return;}if(sheet==5){selectedRoom=std::min<unsigned>(ctx->gpr[6],roomValues.size()-1);return;}if(sheet==4)return;if(sheet==3){const auto devices=settings_overlay::PcControllerDevices();selectedController=std::min<unsigned>(ctx->gpr[6],devices.size()-1);Configure(ctx,activePage);}else{settings_overlay::SetPcGraphicsScroller(sheet,ctx->gpr[6]);if(sheet==1)Configure(ctx,activePage);}}
 REGISTER_NATIVE_WRAPPER_AS(0x80853998,PcScrollChange,"PcOriginalUI_GraphicsScroll");
-extern "C" void PcTextChange(CpuContext* ctx){if(ctx->gpr[3]!=activePage){MKW_GUEST_NEXT(80853A10)(ctx);return;}const auto devices=settings_overlay::PcControllerDevices();const std::vector<std::u16string> updateValues{PcOnlineRooms::UpdateSummary()};const auto& values=sheet==5?roomValues:sheet==4?updateValues:sheet==3?devices:sheet==2?PcMenuLocale::Languages:sheet==1?presets:scales;auto value=std::min<unsigned>(ctx->gpr[5],values.size()-1);Text(ctx,ctx->gpr[4],51,values[value]);}
+extern "C" void PcTextChange(CpuContext* ctx){if(ctx->gpr[3]!=activePage){MKW_GUEST_NEXT(80853A10)(ctx);return;}const auto devices=settings_overlay::PcControllerDevices();const auto controllerValues=ControllerChoices(devices);const std::vector<std::u16string> updateValues{PcOnlineRooms::UpdateSummary()};const auto& values=sheet==5?roomValues:sheet==4?updateValues:sheet==3?controllerValues:sheet==2?PcMenuLocale::Languages:sheet==1?presets:scales;auto value=std::min<unsigned>(ctx->gpr[5],values.size()-1);Text(ctx,ctx->gpr[4],51,values[value]);if(sheet==3)Bottom(ctx,devices[value]);}
 REGISTER_NATIVE_WRAPPER_AS(0x80853A10,PcTextChange,"PcOriginalUI_GraphicsValueText");
 extern "C" void PcExternalSelect(CpuContext* ctx){if(ctx->gpr[3]!=activePage){MKW_GUEST_NEXT(80853684)(ctx);return;}Bottom(ctx,T(u"Ver la siguiente pagina de opciones avanzadas.",u"Open the next page of advanced options.",u"Ouvrir la page suivante des options avancées.",u"Nächste Seite der erweiterten Optionen öffnen.",u"Apri la pagina successiva delle opzioni avanzate."));}
 REGISTER_NATIVE_WRAPPER_AS(0x80853684,PcExternalSelect,"PcOriginalUI_GraphicsNextHint");
@@ -401,7 +420,7 @@ extern "C" void PcPageUpdate(CpuContext* ctx){const auto page=ctx->gpr[3];MKW_GU
                 Memory::Read8(button+0x1E9),Memory::Read32(button+0x1B0));
         }
     }
-    if(page==activePage&&sheet==3&&!closingPc&&settings_overlay::PcControllerDevices()!=visibleControllers){selectedController=0;Configure(ctx,page);}
+    if(page==activePage&&sheet==3&&!closingPc){const auto current=settings_overlay::PcControllerDeviceIds();if(current!=visibleControllerIds||settings_overlay::PcControllerDevices()!=visibleControllers){const auto chosen=selectedController<visibleControllerIds.size()?visibleControllerIds[selectedController]:0;const auto found=std::find(current.begin(),current.end(),chosen);selectedController=found==current.end()?0:static_cast<unsigned>(found-current.begin());Configure(ctx,page);}}
     if(page==activePage&&sheet==4&&!closingPc&&UpdateStateKey()!=visibleUpdateState)Configure(ctx,page);
     if(languageRefresh&&textScratch){languageRefresh=false;RefreshLanguage(ctx);}
     const auto pageId=Memory::Read32(page+4);if(Memory::Read32(page+8)==4&&!stockLabels.contains(page)){
@@ -528,3 +547,7 @@ extern "C" void PcIncomingReservationProbe(CpuContext* ctx){
     MKW_GUEST_NEXT(800DC234)(ctx);
 }
 REGISTER_NATIVE_WRAPPER_AS(0x800DC234,PcIncomingReservationProbe,"PcOriginalUI_IncomingReservationProbe");
+extern "C" void PcDvdPathVisibility(CpuContext* ctx){MKW_GUEST_NEXT(8015DF4C)(ctx);if(!DVDMyStuffEntryVisible(static_cast<int32_t>(ctx->gpr[3])))ctx->gpr[3]=0xFFFFFFFFu;}
+REGISTER_NATIVE_WRAPPER_AS(0x8015DF4C,PcDvdPathVisibility,"PcOriginalDvd_PathVisibility");
+extern "C" void PcDvdOpenVisibility(CpuContext* ctx){if(!DVDMyStuffEntryVisible(static_cast<int32_t>(ctx->gpr[3]))){ctx->gpr[3]=0;return;}MKW_GUEST_NEXT(8015E254)(ctx);}
+REGISTER_NATIVE_WRAPPER_AS(0x8015E254,PcDvdOpenVisibility,"PcOriginalDvd_OpenVisibility");
