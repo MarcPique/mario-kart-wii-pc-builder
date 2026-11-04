@@ -2,6 +2,8 @@
 
 **Última revisión:** corregida una repetición que seguía apareciendo en una invitación de amistad en andalûh. Las correcciones del español se aplican antes de generar la transcripción. El contador de salas usa ahora una etiqueta traducida y el número, evitando combinaciones como «1 salas» en los quince idiomas. Se conserva el cambio inmediato de idioma.
 
+Los avisos enviados en directo por el servidor de Retro WFC conservan su idioma original y pueden mostrarse en inglés; no forman parte del banco de traducciones instalado.
+
 **Revisión de idiomas:** 1.260 entradas del catálogo de PC en los quince idiomas y 1.543 fragmentos de juego por idioma en catalán, gallego y euskera. Corregidos sentidos equivocados de carrera, circuito, copa, derrape, salas y texturas; confirmaciones y mensajes que perdían instrucciones. Las frases se revisan con contexto antes de ajustarse a las líneas. Se conservan botones, variables, `%ls`, `%04d`, nombres propios y códigos como ZIP/7z o 200cc. Andalûh mantiene las marcas y formatos sin transcribirlos. El aviso antiguo que pedía reiniciar al cambiar de idioma se corrige en los quince idiomas.
 
 El runtime aplica ahora el catálogo revisado también al español, francés, alemán, italiano e inglés. Los textos de juego de Retro Rewind se conservan salvo las correcciones indicadas. Catalán, gallego y euskera siguen identificados como experimentales; esta revisión no es una certificación por hablantes nativos. [Alcance y procedencia](https://github.com/MarcPique/mario-kart-wii-pc-builder/blob/main/docs/LOCALIZATION.md).

@@ -45,7 +45,7 @@ El icono completo se obtiene **localmente del banner de tu disco**. La integraci
 
 **Español · English · Français · Deutsch · Italiano · Nederlands · Čeština · Suomi · Русский · Türkçe · Español LA · Català · Galego · Euskara · Andalûh**
 
-El cambio actualiza los textos del juego, Retro Rewind y las opciones de PC **al instante**, incluidos los menús ya abiertos. Solo utiliza las fuentes existentes. Las voces y el texto integrado en imágenes no cambian.
+El cambio actualiza los textos del juego, Retro Rewind y las opciones de PC **al instante**, incluidos los menús ya abiertos. Solo utiliza las fuentes existentes. Las voces y el texto integrado en imágenes no cambian. Los avisos enviados por el servidor de Retro WFC se muestran en su idioma original y pueden estar en inglés.
 
 **Revisión de idiomas en preview 4:** revisados los **1.260 textos de opciones de PC** y **1.543 fragmentos de juego por idioma** en catalán, gallego y euskera. Se corrigen sentidos equivocados de carrera, circuito, copa y derrape, además de confirmaciones, errores e instrucciones incompletas. Las frases se traducen con contexto antes de ajustarlas a las líneas. Los nombres propios, formatos y códigos de botones se conservan, también en andalûh.
 

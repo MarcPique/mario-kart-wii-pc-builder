@@ -2,6 +2,8 @@
 
 The 1.1.0 preview supports `es`, `en`, `fr`, `de`, `it`, `nl`, `cs`, `fi`, `ru`, `tr`, `es-419`, `ca`, `gl`, `eu` and `and_ES`. Language changes update loaded messages in the same game process. They apply to original game messages, Retro Rewind messages and the native PC options. Course/character artwork, embedded images, voice recordings and untranslated names are not replaced.
 
+Live announcements supplied by the Retro WFC server are displayed as received. They may be in English even when the local menus use another language; they are not part of the installed translation bank.
+
 The original five PAL languages come from the user's disc plus Retro Rewind overrides. Dutch, Czech, Finnish, Russian, Turkish and Latin American Spanish retain the localized text bundled with Retro Rewind 6.13.4. Invariant names and technical labels missing from those banks are preserved rather than machine-translated. Catalan, Galician and Basque game text started as experimental machine translation and has received the contextual review described below. Their menu entries retain an asterisk and the automatic-translation notice. These are not the existing community translation projects or professionally verified translations. Andaluh is an EPA transliteration of the Spanish bank, generated with Andalugeeks' library; it is not a separately translated Spanish dialect recording.
 
 ## Contextual review in preview 4
