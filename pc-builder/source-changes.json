@@ -32,5 +32,9 @@
   "runtime/include/pc_live_locale.h",
   "runtime/include/pc_locale_bank.h",
   "runtime/include/pc_locale_catalog.h",
-  "runtime/cmake/PublicProducts.cmake"
+  "runtime/cmake/PublicProducts.cmake",
+  "runtime/include/pc_aspect_ratio.h",
+  "runtime/include/pc_texture_packs.h",
+  "runtime/src/pc_texture_packs.cpp",
+  "runtime/src/dynamic_aspect.cpp"
 ]

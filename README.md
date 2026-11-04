@@ -20,7 +20,7 @@ Este builder genera una instalación nativa para Windows a partir de **tu propio
 
 **✅ Online habilitado mediante Retro WFC:** login, amigos y salas integrados en el propio juego, sin cerrar ni cambiar de ejecutable. Las salas se consultan al iniciar y se actualizan automáticamente cada **40 segundos**.
 
-**🌍 [Probar 1.1.0-preview.1: 15 idiomas](https://github.com/MarcPique/mario-kart-wii-pc-builder/releases/tag/v1.1.0-preview.1)** · Español, English, Français, Deutsch, Italiano, Nederlands, Čeština, Suomi, Русский, Türkçe, Español LA, Català, Galego, Euskara y Andalûh. Usa solo las fuentes existentes y cambia sin reiniciar. **Catalán, gallego y euskera tienen traducción automática experimental**, marcada en el menú; otros idiomas añadidos incluyen suplementos automáticos. Andaluh es una transcripción EPA. Las voces e imágenes no se traducen. [Procedencia, límites y generación](docs/LOCALIZATION.md). La descarga estable superior sigue siendo 1.0.2, con cinco idiomas.
+**🌍 [Probar 1.1.0-preview.2: 15 idiomas](https://github.com/MarcPique/mario-kart-wii-pc-builder/releases/tag/v1.1.0-preview.2)** · Español, English, Français, Deutsch, Italiano, Nederlands, Čeština, Suomi, Русский, Türkçe, Español LA, Català, Galego, Euskara y Andalûh. Usa solo las fuentes existentes y cambia sin reiniciar. **Catalán, gallego y euskera tienen traducción automática experimental**, marcada en el menú; otros idiomas añadidos incluyen suplementos automáticos. Andaluh es una transcripción EPA. Las voces e imágenes no se traducen. [Procedencia, límites y generación](docs/LOCALIZATION.md). La descarga estable superior sigue siendo 1.0.2, con cinco idiomas.
 
 ## Lo que incluye
 
@@ -40,6 +40,14 @@ La versión **1.0.2** incluye la página nativa **Mandos** y asignación a cuatr
 Los **personajes personalizados incluidos en Retro Rewind también se usan en las carreras locales**: selecciona un personaje y pulsa **L/R** para elegir su variante antes de confirmar. En DualSense son **L1/R1** con la configuración predeterminada. Se ha verificado **Mario (Fire) en Grand Prix**, además del modelo de selección. Esto no añade modelos externos que no formen parte del pack instalado.
 
 También incluye la consulta de versiones de Retro Rewind, «Todas las pistas» en ajustes recién creados y el selector de salas públicas. Se ha verificado la entrada a salas Retro y CT; otros modos y cambios de anfitrión necesitan más pruebas. **Hasta cuatro jugadores en multijugador local; hasta dos jugadores locales por PC en Retro WFC.** Cuatro jugadores online desde una sola conexión requerirían ampliar los paquetes del juego y la compatibilidad de los demás clientes; esta versión no lo implementa.
+
+### Pantallas, texturas y salida · preview 2
+
+La [versión 1.1.0-preview.2](https://github.com/MarcPique/mario-kart-wii-pc-builder/releases/tag/v1.1.0-preview.2) añade **Salir al escritorio** al menú principal con confirmación nativa y **Cancelar** como opción inicial. B cancela; confirmar Salir cierra el juego.
+
+**16 formatos:** Automático, 4:3, 5:4, 3:2, 16:10, 16:9, 1.85:1, 2:1, 21:9, 43:18, 64:27, 32:10, 32:9, 48:9, 1:1 y 9:16. En **Opciones avanzadas → Formato**, Automático sigue la ventana; un formato fijo conserva las proporciones con bandas cuando corresponde. El campo de visión se adapta mediante el sistema EGG existente.
+
+**Paquetes de texturas de Dolphin:** PNG/DDS descomprimidos en `UserData/Load/Textures/RMCP01` o `RMC`. Activa, desactiva y recarga desde **Opciones avanzadas → Paquetes de texturas**, sin reiniciar. Las texturas ausentes o no válidas conservan las originales. No se incluyen paquetes ni se sobrescriben los archivos del disco. [Formato de carpetas y límites](docs/TEXTURE-PACKS.md).
 
 ## Instalación
 
@@ -76,9 +84,17 @@ Capturas del juego durante las pruebas locales y de la interfaz del instalador. 
 |---|---|
 | ![Cambio inmediato a catalán](docs/screenshots/language-catalan.png) | ![Cambio inmediato a gallego](docs/screenshots/language-galician.png) |
 
+<p align="center"><img src="docs/screenshots/main-menu-exit.png" width="800" alt="Salir al escritorio integrado en el menú principal original"></p>
+
+| Salir con confirmación nativa · preview 2 | Texturas de Dolphin · preview 2 |
+|---|---|
+| ![Confirmación con Cancelar seleccionado](docs/screenshots/exit-confirmation.png) | ![Activar y recargar PNG/DDS en el menú original](docs/screenshots/texture-packs.png) |
+
+<p align="center"><img src="docs/screenshots/ultrawide-race.png" width="1000" alt="Mario Fire en Grand Prix a 32:9, ventana de prueba de 1920 por 540 píxeles"></p>
+
 ## Dentro del juego
 
-En la selección de carné, entra en **Opciones → Opciones avanzadas**. En una carrera local, abre la pausa y elige **Opciones avanzadas**. El botón inferior cambia entre **Pantalla**, **Calidad gráfica**, **Idioma**, **Mandos** y **Actualizaciones**. En Mandos elige el dispositivo y pulsa **Asignar** en el jugador deseado; **Vaciar** libera su puesto.
+En la selección de carné, entra en **Opciones → Opciones avanzadas**. En una carrera local, abre la pausa y elige **Opciones avanzadas**. El botón inferior cambia entre **Pantalla**, **Calidad gráfica**, **Idioma**, **Mandos**, **Actualizaciones**, **Formato** y **Paquetes de texturas**. En Mandos elige el dispositivo y pulsa **Asignar** en el jugador deseado; **Vaciar** libera su puesto.
 
 Puedes cambiar resolución interna y de ventana, modo de pantalla, formato, V-Sync, FPS, bloom, MSAA 4x, anisotropía, nitidez, interpolación, vibración y silencio. Presets: **Original Wii, Bajo, Medio, Alto y Ultra**.
 

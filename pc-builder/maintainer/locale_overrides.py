@@ -115,3 +115,18 @@ OTHER = {
 'ru':{'Advanced Options':'Расширенные настройки','Controllers':'Геймпады','Controller':'Геймпад','Display':'Экран','Keyboard':'Клавиатура','Device':'Устройство','Public rooms':'Публичные комнаты','Rooms':'Комнаты','Room':'Комната','No rooms available':'Нет доступных комнат','Assign':'Назначить','Clear':'Убрать','On':'Да','Off':'Нет','Low':'Низкое','Medium':'Среднее','High':'Высокое','Automatic':'Автоматически','Custom':'Свой','None':'Нет','Player':'Игрок','Aspect Ratio':'Соотношение сторон','Graphics Quality':'Качество графики','Windowed':'В окне','Borderless':'Без рамки','Fullscreen':'Полный экран','Vibration':'Вибрация','Mute':'Без звука'},
 'tr':{'Display':'Ekran','Controllers':'Oyun kumandaları','Controller':'Oyun kumandası','Device':'Cihaz','Keyboard':'Klavye','On':'Evet','Off':'Hayır','Low':'Düşük','Medium':'Orta','High':'Yüksek','Automatic':'Otomatik','Custom':'Özel','None':'Yok','Clear':'Temizle','Assign':'Ata','Player':'Oyuncu','Aspect Ratio':'En boy oranı','Graphics Quality':'Grafik kalitesi','Windowed':'Pencere','Borderless':'Kenarlıksız','Fullscreen':'Tam ekran','Vibration':'Titreşim','Mute':'Sessiz','Advanced Options':'Gelişmiş ayarlar'},
 }
+
+TEXT.update({
+'Exit to desktop':('Surt a l’escriptori','Saír ao escritorio','Irten mahaigainera'),
+'Texture Packs':('Paquets de textures','Paquetes de texturas','Testura-paketeak'),
+'Are you sure you want to exit to the desktop?':('Segur que vols sortir a l’escriptori?','Seguro que queres saír ao escritorio?','Ziur mahaigainera irten nahi duzula?'),
+'Exit':('Surt','Saír','Irten'),
+'Cancel':('Cancel·la','Cancelar','Utzi'),
+'Reload':('Torna a carregar','Recargar','Birkargatu'),
+'Folder':('Carpeta','Cartafol','Karpeta'),
+'Open':('Obre','Abrir','Ireki'),
+'Automatic fills the window. Fixed ratios preserve proportions.':('Automàtic omple la finestra. Els formats fixos mantenen les proporcions.','Automático enche a xanela. Os formatos fixos conservan as proporcións.','Automatikoak leihoa betetzen du. Formatu finkoek proportzioak gordetzen dituzte.'),
+'Missing or invalid textures use the originals. Dolphin PNG/DDS.':('Si falta una textura o falla, es fa servir l’original. PNG/DDS Dolphin.','Se falta unha textura ou falla, úsase a orixinal. PNG/DDS Dolphin.','Falta diren edo balio ez duten testurek jatorrizkoak erabiltzen dituzte. Dolphin PNG/DDS.')
+})
+
+TEXT['Textures']=('Textures','Texturas','Testurak')

@@ -1,4 +1,9 @@
-## Mario Kart Wii PC Builder 1.1.0-preview.1
+## Mario Kart Wii PC Builder 1.1.0-preview.2
+
+- **Salir al escritorio** en el menú principal, con confirmación original, Cancelar seleccionado por defecto y B para volver. Se ha verificado el cierre con código 0.
+- **16 formatos en vivo:** Automático, 4:3, 5:4, 3:2, 16:10, 16:9, 1.85:1, 2:1, 21:9, 43:18, 64:27, 32:10, 32:9, 48:9, 1:1 y 9:16. El formato fijo conserva proporciones y usa bandas si corresponde; Automático sigue la ventana.
+- **Texturas de Dolphin PNG/DDS** con activación y recarga en el menú nativo, sin reiniciar. Copia los archivos descomprimidos a `UserData/Load/Textures/RMCP01` o `RMC`, conservando los nombres `tex1_`. Se han probado PNG, DDS, paquete parcial, archivo dañado y retirada del paquete: lo que falta o falla utiliza el original. Los ZIP/7z/RAR deben extraerse antes. No se incluye ningún paquete de texturas.
+
 
 **Versión preliminar de idiomas:** español, inglés, francés, alemán, italiano, neerlandés, checo, finés, ruso, turco, español latinoamericano, catalán, gallego, euskera y andalûh (EPA). El cambio es inmediato en el mismo proceso y utiliza únicamente las fuentes ya instaladas. Japonés y coreano no se ofrecen porque faltan caracteres en esas fuentes.
 

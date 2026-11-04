@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.1.0-preview.2 — 2026-11-04
+
+- Add Exit to desktop to the native main menu. Reuse the original full-screen confirmation, default to Cancel, support B cancellation, and exit successfully through the existing clean window-close path.
+- Add a live aspect-ratio page with sixteen common automatic, standard, ultrawide and portrait formats. Preserve legacy profile behavior; fixed formats adapt the EGG camera canvas and presentation together with proportion-preserving bars.
+- Generalize Aurora's fixed presentation aspect instead of stretching a 16:9 framebuffer. Rebuild the matching window object in the backed-up Aurora core archive.
+- Connect Aurora's Dolphin PNG/DDS replacement loader to native enable/reload/open-folder controls. Index PAL and region-independent folders with clear priority, preserve legacy folders, and keep original textures when a replacement is absent, corrupt or unsupported.
+- Validate live PNG/DDS registration, corrupt-image fallback and removal without restarting. Add aspect migration/geometry checks and translated PC labels for all fifteen locales.
+
 ## 1.1.0-preview.1 — 2026-11-04
 
 - Expand immediate language switching from five to fifteen locales: Spanish, English, French, German, Italian, Dutch, Czech, Finnish, Russian, Turkish, Latin American Spanish, Catalan, Galician, Basque and Andaluh (EPA).

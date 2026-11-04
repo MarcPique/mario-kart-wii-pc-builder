@@ -72,6 +72,7 @@
 #include "gx_worker.h"
 #include "hle_stubs.h"
 #include "runtime_config.h"
+#include "pc_texture_packs.h"
 #include "runtime_log.h"
 #include "runtime_product.h"
 #include "recomp_mod_loader.h"
@@ -1403,13 +1404,9 @@ int RuntimeMain(int argc, char** argv) {
         // Prepare the game and shaders without exposing a runtime splash.
         auroraConfig.startHidden = true;
         auroraConfig.disableCopyFilter = RuntimeConfigFile::DisableCopyFilter(true);
-        // Dolphin-style custom textures. Aurora indexes <userPath>/texture_replacements
-        // once during aurora_initialize, so both knobs only take effect on the next launch.
-        // Dumps name each unmatched texture the way its replacement would have to be named,
-        // which is only useful while the index is live - hence the conjunction.
-        auroraConfig.allowTextureReplacements = RuntimeConfigFile::TextureReplacements(false);
-        auroraConfig.allowTextureDumps = auroraConfig.allowTextureReplacements &&
-                                         RuntimeConfigFile::TextureDumps(false);
+        // Runtime owns registrations so packs can be toggled/reloaded without a restart.
+        auroraConfig.allowTextureReplacements = false;
+        auroraConfig.allowTextureDumps = RuntimeConfigFile::TextureDumps(false);
         auroraConfig.msaa = RuntimeConfigFile::Get().msaaSamples.value_or(1);
         auroraConfig.maxTextureAnisotropy = static_cast<uint16_t>(RuntimeConfigFile::Get().anisotropy.value_or(1));
         RT_LOGF(RT_TAG_RUNTIME, "PC graphics: MSAA %u, anisotropy %u\n", auroraConfig.msaa, auroraConfig.maxTextureAnisotropy);
@@ -1464,6 +1461,7 @@ int RuntimeMain(int argc, char** argv) {
         Wiimote::ConfigureSdlHints(RuntimeConfigFile::WiiRemotesEnabled());
 
         const AuroraInfo auroraInfo = aurora_initialize(0, nullptr, &auroraConfig);
+        PcTexturePacks::Initialize();
         if (auroraInfo.initializationStatus != AURORA_INITIALIZATION_SUCCESS) {
             throw std::runtime_error(auroraInfo.initializationError != nullptr
                 ? auroraInfo.initializationError : "No supported graphics backend is available");

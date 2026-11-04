@@ -25,6 +25,8 @@ jobs:
         run: g++ -std=c++20 -O2 -Iruntime/include runtime/tests/pc_rr_update_manifest_tests.cpp -o /tmp/retro-updates && /tmp/retro-updates
       - name: My Stuff patch selection
         run: g++ -std=c++20 -O2 -Iruntime/include -Iruntime/third_party/pugixml runtime/tests/pc_my_stuff_tests.cpp runtime/third_party/pugixml/pugixml.cpp -o /tmp/my-stuff && /tmp/my-stuff
+      - name: Display aspect ratios and legacy profiles
+        run: g++ -std=c++20 -O2 -Iruntime/include runtime/tests/pc_aspect_ratio_tests.cpp -o /tmp/aspect-ratios && /tmp/aspect-ratios
       - name: Dynamic and legacy language banks
         run: g++ -std=c++20 -O2 -Iruntime/include runtime/tests/pc_locale_bank_tests.cpp -o /tmp/locale-bank && /tmp/locale-bank
   windows-installer:

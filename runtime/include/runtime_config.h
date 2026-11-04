@@ -21,6 +21,7 @@
 #include <toml.hpp>
 #include "platform/host_platform.h"
 #include "pc_locale_catalog.h"
+#include "pc_aspect_ratio.h"
 #ifdef _WIN32
 #ifndef WIN32_LEAN_AND_MEAN
 #define WIN32_LEAN_AND_MEAN
@@ -37,6 +38,7 @@ struct RuntimeUserConfig {
     std::optional<uint32_t> qualityPreset;
     std::optional<bool> widescreen;
     std::optional<bool> forceAspect169;
+    std::optional<std::string> aspectRatio;
     std::optional<int32_t> windowPosX;
     std::optional<int32_t> windowPosY;
     std::optional<uint32_t> windowWidth;
@@ -413,6 +415,7 @@ inline RuntimeUserConfig ParseConfigDocument(const toml::value& document) {
     if (auto value = FindConfigUint(document, "video", "anisotropy"); value && (*value == 1 || *value == 2 || *value == 4 || *value == 8 || *value == 16)) config.anisotropy = *value;
     config.widescreen = FindConfigValue<bool>(document, "video", "widescreen");
     config.forceAspect169 = FindConfigValue<bool>(document, "video", "force_16_9");
+    if(auto value=FindConfigValue<std::string>(document,"video","aspect_ratio");value&&PcAspectRatio::Find(*value))config.aspectRatio=*value;
     config.windowPosX = FindConfigInt(document, "video", "window_x");
     config.windowPosY = FindConfigInt(document, "video", "window_y");
     if (auto value = FindConfigUint(document, "video", "window_width"); value && *value != 0) {

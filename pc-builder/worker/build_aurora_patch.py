@@ -13,9 +13,11 @@ for name in ['encoding','tex_copy_conv','texture']:
 archive=d/'native_prebuilt/lib/libaurora_gx.a';backup=out/'libaurora_gx.original.a'
 if not backup.exists():shutil.copy2(archive,backup)
 subprocess.run([str(tool/'llvm-ar.exe'),'r',str(archive),*map(str,objects)],check=True)
-core_obj=out/'gpu.cpp.obj'
-subprocess.run([str(tool/'x86_64-w64-mingw32-clang++.exe'),*flags,'-c',str(a/'lib/webgpu/gpu.cpp'),'-o',str(core_obj)],check=True)
+core_objects=[]
+for relative in ['webgpu/gpu.cpp','window.cpp']:
+    core_obj=out/(Path(relative).name+'.obj');core_objects.append(core_obj)
+    subprocess.run([str(tool/'x86_64-w64-mingw32-clang++.exe'),*flags,'-c',str(a/'lib'/relative),'-o',str(core_obj)],check=True)
 core_archive=d/'native_prebuilt/lib/libaurora_core.a';core_backup=out/'libaurora_core.original.a'
 if not core_backup.exists():shutil.copy2(core_archive,core_backup)
-subprocess.run([str(tool/'llvm-ar.exe'),'r',str(core_archive),str(core_obj)],check=True)
+subprocess.run([str(tool/'llvm-ar.exe'),'r',str(core_archive),*map(str,core_objects)],check=True)
 print('Rebuilt Aurora graphics objects; original archive preserved',flush=True)

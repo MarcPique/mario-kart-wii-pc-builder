@@ -4,6 +4,9 @@
 #include <algorithm>
 #include <atomic>
 #include "aurora_events.h"
+#include "runtime_config.h"
+#include "runtime_log.h"
+extern "C" void aurora_pc_set_fixed_aspect(unsigned,unsigned) noexcept;
 #include "hle/gx/gx_dynamic_aspect.h"
 
 #include <dolphin/vi.h>
@@ -19,6 +22,7 @@ bool g_widescreenSetting = false;
 bool g_forceAspect169 = false;
 std::atomic_bool g_requestedForceAspect169{false};
 bool g_policyDirty = false;
+uint32_t g_fixedWidth=16,g_fixedHeight=9;
 uint32_t g_lastEggWidth43 = 0;
 uint32_t g_lastEggWidth169 = 0;
 
@@ -196,8 +200,8 @@ void UpdateMkwDynamicAspectSurface(uint32_t surfaceWidth, uint32_t surfaceHeight
         g_policyDirty = false;
     }
     AuroraSetViewportPolicy(g_forceAspect169 ? AURORA_VIEWPORT_16_9 : AURORA_VIEWPORT_STRETCH);
-    ApplyEggScreenRecords(g_forceAspect169 ? 16u : surfaceWidth,
-                          g_forceAspect169 ? 9u : surfaceHeight);
+    ApplyEggScreenRecords(g_forceAspect169 ? g_fixedWidth : surfaceWidth,
+                          g_forceAspect169 ? g_fixedHeight : surfaceHeight);
 }
 
 void SetMkwForceAspect169(bool enabled) {
@@ -209,17 +213,25 @@ bool MkwForceAspect169Requested() {
 }
 
 void ConfigureMkwDynamicAspect(bool widescreen, bool forceAspect169, uint32_t surfaceWidth, uint32_t surfaceHeight) {
+    const auto& config=RuntimeConfigFile::Get();
+    const auto index=PcAspectRatio::Resolve(config.aspectRatio,widescreen,forceAspect169);
+    const auto& ratio=PcAspectRatio::ratios[index];
+    widescreen=index!=1;forceAspect169=index!=0&&index!=1;
+    g_fixedWidth=ratio.width?ratio.width:16;g_fixedHeight=ratio.height?ratio.height:9;
+    aurora_pc_set_fixed_aspect(g_fixedWidth,g_fixedHeight);
+    RT_LOGF("pc-aspect","Aspect %s; canvas %u:%u; %s\n",ratio.code.data(),g_fixedWidth,g_fixedHeight,index?"preserve proportions":"follow window");
     g_widescreenSetting = widescreen;
     g_widescreenConfigured = widescreen || forceAspect169;
     g_forceAspect169 = forceAspect169;
     g_requestedForceAspect169.store(forceAspect169, std::memory_order_relaxed);
     g_dynamicAspectRatioEnabled = g_widescreenConfigured;
+    g_policyDirty = true;
     g_lastEggWidth43 = 0;
     g_lastEggWidth169 = 0;
     if (g_widescreenConfigured) {
         VIUnlockAspectRatio();
-        ApplyEggScreenRecords(forceAspect169 ? 16u : surfaceWidth,
-                              forceAspect169 ? 9u : surfaceHeight);
+        ApplyEggScreenRecords(forceAspect169 ? g_fixedWidth : surfaceWidth,
+                              forceAspect169 ? g_fixedHeight : surfaceHeight);
         return;
     }
 

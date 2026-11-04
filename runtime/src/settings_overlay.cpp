@@ -1644,9 +1644,21 @@ bool PcControllerAssign(unsigned port, uint32_t deviceId, bool assign) {
     return true;
 }
 
+unsigned PcAspectIndex(){return PcAspectRatio::Resolve(RuntimeConfigFile::Get().aspectRatio,RuntimeConfigFile::WidescreenEnabled(true),g_forceAspect169);}
+void PcSetAspect(unsigned index){
+    if(index>=PcAspectRatio::ratios.size())return;
+    const auto& ratio=PcAspectRatio::ratios[index];
+    RuntimeConfigFile::Mutable().aspectRatio=std::string(ratio.code);
+    RuntimeConfigFile::WriteSetting("video","aspect_ratio","\""+std::string(ratio.code)+"\"");
+    g_forceAspect169=index!=0&&index!=1;
+    RuntimeConfigFile::Mutable().widescreen=index!=1;
+    RuntimeConfigFile::WriteSetting("video","widescreen",index==1?"false":"true");
+    RuntimeConfigFile::SetForceAspect169(g_forceAspect169);
+    const auto size=aurora_get_window_size();ConfigureMkwDynamicAspect(index!=1,g_forceAspect169,size.width,size.height);
+}
 unsigned PcGraphicsValue(unsigned sheet,unsigned row) {
     if(sheet==2){if(row==0){const auto size=aurora_get_window_size();return size.width>=3840?3:size.width>=2560?2:size.width>=1920?1:0;}if(row==1)return g_rumbleEnabled;if(row==2)return g_audioMuted;return 0;}
-    if(sheet==0){switch(row){case 0:return static_cast<unsigned>(aurora_get_display_mode());case 1:return !RuntimeConfigFile::WidescreenEnabled(true)?2:g_forceAspect169?1:0;case 2:return g_vsync;case 3:return g_showFps;case 4:return (g_disabledPostProcessingPaths&0x10u)==0;}}
+    if(sheet==0){switch(row){case 0:return static_cast<unsigned>(aurora_get_display_mode());case 1:return PcAspectIndex()==0?0:PcAspectIndex()==1?2:1;case 2:return g_vsync;case 3:return g_showFps;case 4:return (g_disabledPostProcessingPaths&0x10u)==0;}}
     else {switch(row){case 0:return g_pcMsaa==4;case 1:return g_pcAnisotropy>=16?2:g_pcAnisotropy>=8?1:0;case 2:return g_disableCopyFilter;case 3:return g_frameInterpolationMode!=0;case 4:return g_rumbleEnabled;}}
     return 0;
 }
@@ -1654,7 +1666,7 @@ void SetPcGraphicsValue(unsigned sheet,unsigned row,unsigned value) {
     if(sheet==2){if(row==0&&value<4){const int widths[]={1280,1920,2560,3840},heights[]={720,1080,1440,2160};if(aurora_get_display_mode()!=AURORA_DISPLAY_MODE_WINDOWED){aurora_set_display_mode(AURORA_DISPLAY_MODE_WINDOWED);RuntimeConfigFile::SetDisplayMode("windowed");}SDL_SetWindowSize(aurora_get_window(),widths[value],heights[value]);RuntimeConfigFile::SetWindowSize(widths[value],heights[value]);}else if(row==1){g_rumbleEnabled=value;PAD_HLE_SetRumbleEnabled(g_rumbleEnabled);RuntimeConfigFile::SetRumbleEnabled(g_rumbleEnabled);}else if(row==2){g_audioMuted=value;AudioBackend::Instance().SetMuted(g_audioMuted);RuntimeConfigFile::SetAudioMuted(g_audioMuted);}return;}
     if(sheet==0){switch(row){
     case 0:if(value<3){aurora_set_display_mode(static_cast<AuroraDisplayMode>(value));g_displayMode=static_cast<int>(aurora_get_display_mode());RuntimeConfigFile::SetDisplayMode(std::string(kDisplayModeConfigNames[g_displayMode]));}break;
-    case 1:if(value<3){g_forceAspect169=value==1;RuntimeConfigFile::Mutable().widescreen=value!=2;RuntimeConfigFile::WriteSetting("video","widescreen",value==2?"false":"true");RuntimeConfigFile::SetForceAspect169(g_forceAspect169);const auto size=aurora_get_window_size();ConfigureMkwDynamicAspect(value!=2,g_forceAspect169,size.width,size.height);}break;
+    case 1:if(value<3)PcSetAspect(value==0?0:value==2?1:(PcAspectIndex()>1?PcAspectIndex():5));break;
     case 2:g_vsync=value;aurora_enable_vsync(g_vsync);RuntimeConfigFile::SetVsync(g_vsync);break;
     case 3:g_showFps=value;RuntimeConfigFile::SetShowFps(g_showFps);break;
     case 4:g_disabledPostProcessingPaths=value?0:0x10u;RuntimeGameGraphicsOptions::SetDisabledPostProcessingPaths(g_disabledPostProcessingPaths);RuntimeConfigFile::SetDisabledPostProcessingPaths(g_disabledPostProcessingPaths);PcMarkCustom();break;
