@@ -26,7 +26,12 @@ jobs:
       - name: My Stuff patch selection
         run: g++ -std=c++20 -O2 -Iruntime/include -Iruntime/third_party/pugixml runtime/tests/pc_my_stuff_tests.cpp runtime/third_party/pugixml/pugixml.cpp -o /tmp/my-stuff && /tmp/my-stuff
       - name: Independent local session profiles
-        run: g++ -std=c++20 -O2 -Iruntime/include runtime/tests/pc_session_profile_tests.cpp -o /tmp/session-profiles && /tmp/session-profiles
+        run: |
+          g++ -std=c++20 -O2 -Iruntime/include runtime/tests/pc_session_profile_tests.cpp -o /tmp/session-profiles
+          /tmp/session-profiles
+          MKW_PC_LOCAL_ROLE=host MKW_PC_PROFILE= /tmp/session-profiles --resolve
+          MKW_PC_LOCAL_ROLE=follower MKW_PC_PROFILE=online-pair-2 /tmp/session-profiles --resolve
+          if MKW_PC_LOCAL_ROLE=follower MKW_PC_PROFILE= /tmp/session-profiles --resolve; then exit 1; fi
       - name: Coordinated local input routing
         run: g++ -std=c++20 -O2 -Iruntime/include runtime/tests/pc_local_input_tests.cpp -o /tmp/local-input && /tmp/local-input
       - name: Immutable My Stuff cache contract

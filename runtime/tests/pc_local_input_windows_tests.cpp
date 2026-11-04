@@ -37,8 +37,13 @@ int main(int argc,char** argv){
     }
     LARGE_INTEGER counter;QueryPerformanceCounter(&counter);char group[33];
     std::snprintf(group,sizeof(group),"%016llx%016llx",static_cast<unsigned long long>(counter.QuadPart),static_cast<unsigned long long>(GetCurrentProcessId()));
-    assert(_putenv_s("MKW_PC_LOCAL_INPUT",group)==0);assert(_putenv_s("MKW_PC_LOCAL_ROLE","host")==0);
-    Initialize();assert(Host());
+    assert(_putenv_s("MKW_PC_LOCAL_INPUT","")==0);assert(_putenv_s("MKW_PC_LOCAL_ROLE","")==0);
+    Initialize();assert(!Host()&&!Follower());assert(!EndHost());
+    assert(!BeginHost("../invalid"));const auto initialGeneration=Generation();
+    assert(BeginHost(group)&&Host()&&!Follower());assert(Generation()>initialGeneration);
+    const auto firstGeneration=Generation();assert(BeginHost(group)&&Generation()==firstGeneration);
+    auto otherGroup=std::string(group);otherGroup[0]=otherGroup[0]=='a'?'b':'a';assert(!BeginHost(otherGroup));
+    assert(_putenv_s("MKW_PC_LOCAL_INPUT",group)==0);
     const auto prefix=std::wstring(L"Local\\MkwInputTest_")+std::wstring(group,group+32);
     auto ready=CreateEventW(nullptr,TRUE,FALSE,(prefix+L"_ready").c_str());
     auto stale=CreateEventW(nullptr,TRUE,FALSE,(prefix+L"_stale").c_str());assert(ready&&stale);
@@ -65,9 +70,11 @@ int main(int argc,char** argv){
     assert(CreateProcessW(executable,command.data(),nullptr,nullptr,FALSE,CREATE_NO_WINDOW,nullptr,nullptr,&startup,&child));CloseHandle(child.hThread);
     const auto closeDeadline=GetTickCount64()+5000;
     while(WaitForSingleObject(ready,0)!=WAIT_OBJECT_0&&GetTickCount64()<closeDeadline){Publish(pads);Sleep(5);}
-    assert(WaitForSingleObject(ready,0)==WAIT_OBJECT_0);Stop();SetEvent(stale);
+    assert(WaitForSingleObject(ready,0)==WAIT_OBJECT_0);assert(EndHost()&&!Host());SetEvent(stale);
     assert(WaitForSingleObject(child.hProcess,5000)==WAIT_OBJECT_0);
     assert(GetExitCodeProcess(child.hProcess,&exitCode)&&exitCode==0);
     CloseHandle(child.hProcess);CloseHandle(ready);CloseHandle(stale);
-    std::cout<<"Two-process input: J3/J4 only, analog input, retained short tap, rumble feedback, loading pause, host close and orderly shutdown passed\n";
+    assert(BeginHost(otherGroup)&&Host());assert(Generation()>firstGeneration);
+    assert(EndHost()&&!Host()&&!Follower());
+    std::cout<<"Two-process input: J3/J4, analog input, short taps, rumble, loading pause and live enable/disable/re-enable without process restart passed\n";
 }

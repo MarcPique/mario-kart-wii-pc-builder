@@ -262,8 +262,8 @@ inline std::filesystem::path BaseApplicationDataDirectory() {
 }
 
 inline std::filesystem::path ApplicationDataDirectory(){
-    const auto base=BaseApplicationDataDirectory();
     const auto& profile=PcSessionProfile::Current();
+    const auto base=BaseApplicationDataDirectory();
     return profile?PcSessionProfile::Directory(base,*profile):base;
 }
 

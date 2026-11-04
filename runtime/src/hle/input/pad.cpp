@@ -116,6 +116,13 @@ extern "C" uint32_t PAD__Read_HLE(uint32_t statusPtr)
     }
 
     PADStatus statuses[PAD_CHANMAX]{};
+    static uint64_t previousSession=0;
+    static std::array<uint32_t,2> previousMotors{UINT32_MAX,UINT32_MAX};
+    const auto session=PcLocalInput::Generation();
+    if(session!=previousSession){
+        for(unsigned port=2;port<PAD_CHANMAX;++port)PADControlMotor(port,PAD_MOTOR_STOP);
+        previousMotors.fill(UINT32_MAX);previousSession=session;
+    }
     uint32_t rumbleMask = 0;
     const bool follower=PcLocalInput::Follower();
     if(!follower)rumbleMask=PADRead(statuses);
@@ -149,7 +156,6 @@ extern "C" uint32_t PAD__Read_HLE(uint32_t statusPtr)
         if(PcLocalInput::Host()){
             // Only this process reads physical devices. Its last two players
             // belong exclusively to the second compatible two-player client.
-            static std::array<uint32_t,2> previousMotors{UINT32_MAX,UINT32_MAX};
             for(unsigned port=2;port<PAD_CHANMAX;++port){
                 statuses[port]={};statuses[port].err=PAD_ERR_NO_CONTROLLER;
                 const auto command=g_rumbleEnabled.load()?feedback.motors[port-2]:PAD_MOTOR_STOP;

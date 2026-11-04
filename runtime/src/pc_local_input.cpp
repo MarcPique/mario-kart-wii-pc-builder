@@ -6,6 +6,7 @@
 #include <cstring>
 #include <algorithm>
 #include <atomic>
+#include <mutex>
 #if defined(_WIN32)
 #ifndef NOMINMAX
 #define NOMINMAX
@@ -20,7 +21,7 @@ namespace PcLocalInput {
 namespace {
 enum class Role { Off,Host,Follower };
 struct Selection {
-    Role role=Role::Off;std::string group;
+    std::atomic<Role> role{Role::Off};std::string group;
     Selection(){
         const auto* groupValue=std::getenv("MKW_PC_LOCAL_INPUT");
         const auto* roleValue=std::getenv("MKW_PC_LOCAL_ROLE");
@@ -32,7 +33,9 @@ struct Selection {
         else throw std::runtime_error("Invalid local input role");
     }
 };
-const Selection& Selected(){static const Selection value;return value;}
+Selection& Selected(){static Selection value;return value;}
+std::mutex& LocalMutex(){static std::mutex value;return value;}
+std::atomic<uint64_t> generation{0};
 #if defined(_WIN32)
 constexpr uint32_t magic=0x4D4B4931;
 struct SharedFrame {
@@ -84,9 +87,25 @@ struct Channel {
 };
 Channel& Current(){static Channel value;return value;}
 std::array<std::atomic<uint32_t>,2>& DesiredMotors(){static std::array<std::atomic<uint32_t>,2> values{};return values;}
+struct CapturedInput {Presses presses;std::array<bool,2> disconnected{};};
+CapturedInput& Captured(){static CapturedInput value;return value;}
+void CloseChannel(){
+    auto& channel=Current();
+    if(Selected().role==Role::Host&&channel.shared&&channel.Lock()){
+        channel.shared->signature=0;channel.shared->frameAt=0;channel.Unlock();
+    }
+    if(Selected().role==Role::Follower&&channel.shared&&channel.Lock()){
+        if(channel.shared->client==GetCurrentProcessId()){channel.shared->client=0;channel.shared->clientAt=0;channel.shared->motors={};}
+        channel.Unlock();
+    }
+    channel.Close();Captured()={};
+    for(auto& motor:DesiredMotors())motor.store(0,std::memory_order_relaxed);
+    if(Selected().role==Role::Host){Selected().role.store(Role::Off,std::memory_order_release);Selected().group.clear();generation.fetch_add(1);}
+}
 #endif
 }
 void Initialize(){
+    std::lock_guard guard(LocalMutex());
     const auto& selection=Selected();
 #if defined(_WIN32)
     if(selection.role==Role::Host&&!Current().Open())throw std::runtime_error("Could not create local input channel");
@@ -94,13 +113,37 @@ void Initialize(){
     if(selection.role!=Role::Off)throw std::runtime_error("Local session input currently requires Windows");
 #endif
 }
-bool Host(){return Selected().role==Role::Host;}
-bool Follower(){return Selected().role==Role::Follower;}
+bool BeginHost(std::string_view group){
+    if(!ValidGroup(group))return false;
+    std::lock_guard guard(LocalMutex());
+#if defined(_WIN32)
+    auto& selection=Selected();
+    if(selection.role==Role::Follower)return false;
+    if(selection.role==Role::Host)return selection.group==group;
+    selection.group=group;selection.role.store(Role::Host,std::memory_order_release);Captured()={};
+    try{if(Current().Open()){generation.fetch_add(1);return true;}}
+    catch(const std::exception& e){RT_LOGF("pc-local-input","Cannot activate local session: %s\n",e.what());}
+    Current().Close();selection.role.store(Role::Off,std::memory_order_release);selection.group.clear();
+#endif
+    return false;
+}
+bool EndHost(){
+    std::lock_guard guard(LocalMutex());
+#if defined(_WIN32)
+    if(!Host())return false;CloseChannel();return true;
+#else
+    return false;
+#endif
+}
+uint64_t Generation(){return generation.load(std::memory_order_acquire);}
+bool Host(){return Selected().role.load(std::memory_order_acquire)==Role::Host;}
+bool Follower(){return Selected().role.load(std::memory_order_acquire)==Role::Follower;}
 Feedback Publish(const Pads& pads){
     Feedback result;
 #if defined(_WIN32)
+    std::lock_guard guard(LocalMutex());
     if(Selected().role!=Role::Host)return result;
-    static Presses captured;static std::array<bool,2> disconnected{};
+    auto& captured=Captured().presses;auto& disconnected=Captured().disconnected;
     const auto now=GetTickCount64();captured.Record(pads,now);
     for(unsigned p=0;p<2;++p)if(pads[p+2][10]!=0)disconnected[p]=true;
     auto& channel=Current();if(!channel.Lock())return result;
@@ -119,6 +162,7 @@ Feedback Publish(const Pads& pads){
 Pads Receive(){
     auto result=Disconnected();
 #if defined(_WIN32)
+    std::lock_guard guard(LocalMutex());
     if(!Follower())return result;
     static Pads previous=Disconnected();static uint64_t previousAt=0;
     auto& channel=Current();if(!channel.Lock())return channel.OwnerAlive()?SecondPair(previous,GetTickCount64(),previousAt,true):Disconnected();
@@ -136,6 +180,7 @@ Pads Receive(){
 }
 void Motor(unsigned port,uint32_t command){
 #if defined(_WIN32)
+    std::lock_guard guard(LocalMutex());
     if(!Follower()||port>=2||command>2)return;
     DesiredMotors()[port].store(command,std::memory_order_relaxed);
     auto& channel=Current();if(!channel.Lock())return;
@@ -146,15 +191,7 @@ void Motor(unsigned port,uint32_t command){
 }
 void Stop(){
 #if defined(_WIN32)
-    auto& channel=Current();
-    if(Selected().role==Role::Host&&channel.shared&&channel.Lock()){
-        channel.shared->signature=0;channel.shared->frameAt=0;channel.Unlock();
-    }
-    if(Selected().role==Role::Follower&&channel.shared&&channel.Lock()){
-        if(channel.shared->client==GetCurrentProcessId()){channel.shared->client=0;channel.shared->clientAt=0;channel.shared->motors={};}
-        channel.Unlock();
-    }
-    channel.Close();
+    std::lock_guard guard(LocalMutex());CloseChannel();
 #endif
 }
 }

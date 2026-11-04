@@ -11,7 +11,7 @@ Rewind 6.13.4 and the user's PAL RMCP01 disc.
 |---|---|---|
 | My Stuff | Native page with the five original choices, Apply and Folder; settings persist. Portable user content takes priority over the legacy SD-style folders. Preparation runs in the background and publishes on the game thread. Leaving these options cancels it. | Real DVD tests passed mode changes, stable entry IDs, hidden inactive files, retained reads after source replacement/deletion, late-added background music and cancelled publication. The native Apply button also passed. Arbitrary new paths that would change existing entry IDs are rejected; further general hot-reload work and final installer tests remain. |
 | Separate savegame | Native page and confirmation, initially Cancel. Switches future save opens and reloads the licenses, returning to the title in the same process. | Real native-menu roundtrip passed. Both banks stayed byte-identical. An invalid target was rejected and the original bank restored, including an exact check of the loaded save core in guest memory. Final installer/update testing remains. |
-| Session isolation | Named sessions keep their own configuration, NAND, saves, cache, textures, mappings and logs while sharing immutable game content. Invalid names fail closed. | Pure contracts and two concurrent native processes passed. Each process used a distinct mutable-data directory. |
+| Session isolation | Named sessions keep their own configuration, NAND, saves, cache, textures, mappings and logs while sharing immutable game content. Invalid names fail closed; a follower without a separate profile is rejected before resolving mutable paths. | Pure contracts and two concurrent native processes passed. Each process used a distinct mutable-data directory. |
 | Four local players online | Development uses two compatible clients with separate profiles, following the user's preference for public Retro WFC. An input-only local channel routes the main session's J3/J4 to the second client's J1/J2; only the main session reads physical controls. | Two distinct profiles joined an own friends room on the public server and raced with two local players each. Four persistent SDL virtual controllers individually accelerated their corresponding karts, with progress received by both clients. The shared-window prototype displayed all four race views; a 35.6-second active observation measured 60.0 simulation frames/s in each client without disconnection. Loading-pause and short-tap fixes passed. Earlier idle observations ended with error 83337; its cause and longer sessions still need checking. Integration into the product launcher remains pending. This is not available in the stable installer. |
 | CT 200cc room routing | Pending compatibility investigation. | The current native room route table has no verified path for `vs_22`. Do not route it through a different mode or advertise it as available. |
 | Launcher updates | Stable release checks official version information. | Download, staging, repair/application and coordination with active sessions still need implementation and tests. Replacing running native code is not implemented. |
@@ -39,6 +39,13 @@ consumer polls after release. Old inputs are neutralized during loading while
 the owning Windows process is alive. Closing the channel or losing the process
 disconnects the controls. An abandoned shared-memory lock invalidates the
 channel. Host gamepads work in the background while both sessions run.
+
+Live input lifecycle APIs can enable, disable and re-enable a group without
+restarting the primary process. Two-process tests and a native SDL test passed
+the sequence of four ordinary local ports, two coordinated host ports, then four
+local ports again, twice in the same process. Ending a group clears pending
+presses and rumble state. Connecting these APIs to the product launcher and its
+native menu remains part of the pending integration.
 
 ![Development test: four online race views in one window](screenshots/four-online-development.png)
 

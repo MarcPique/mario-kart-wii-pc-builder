@@ -54,6 +54,9 @@ struct Presses {
 };
 struct Feedback {bool connected=false;std::array<uint32_t,2> motors{};};
 void Initialize();
+bool BeginHost(std::string_view group);
+bool EndHost();
+uint64_t Generation();
 bool Host();
 bool Follower();
 Feedback Publish(const Pads& pads);
