@@ -9,13 +9,13 @@ Rewind 6.13.4 and the user's PAL RMCP01 disc.
 
 | Area | Development state | Verification and remaining work |
 |---|---|---|
-| My Stuff | Native page with the five original choices, Apply and Folder; settings persist. Portable user content takes priority over the legacy SD-style folders. Preparation runs in the background and publishes on the game thread. Leaving these options cancels it. | Real DVD tests passed mode changes, stable entry IDs, hidden inactive files, retained reads after source replacement/deletion, late-added background music and cancelled publication. The native Apply button also passed. Arbitrary new paths that would change existing entry IDs are rejected; further general hot-reload work and final installer tests remain. |
-| Separate savegame | Native page and confirmation, initially Cancel. Switches future save opens and reloads the licenses, returning to the title in the same process. | Real native-menu roundtrip passed. Both banks stayed byte-identical. An invalid target was rejected and the original bank restored, including an exact check of the loaded save core in guest memory. Final installer/update testing remains. |
+| My Stuff | Native page with the five original choices, Apply and Folder; settings persist. Portable user content takes priority over the legacy SD-style folders. Preparation runs in the background and publishes on the game thread. Leaving these options cancels it. | Real DVD tests passed mode changes, stable entry IDs, hidden inactive files, retained reads after source replacement/deletion, late-added background music and cancelled publication. The native Apply button also passed. Arbitrary new paths that would change existing entry IDs are rejected. The public installer update preserved the checked user data. |
+| Separate savegame | Native page and confirmation, initially Cancel. Switches future save opens and reloads the licenses, returning to the title in the same process. | Real native-menu roundtrip passed. Both banks stayed byte-identical. An invalid target was rejected and the original bank restored, including an exact check of the loaded save core in guest memory. The public 1.2.0 installer update also preserved the checked saves. |
 | Session isolation | Named sessions keep their own configuration, NAND, saves, cache, textures, mappings and logs while sharing immutable game content. Invalid names fail closed. | Pure contracts and two concurrent native processes passed. Each process used a distinct mutable-data directory. |
 | Online players | One original client supports one or two players per PC. The visible entry is **Online**. Coordinated clients have been retired at the user's request. Four players remain supported offline. | Native menu test passed: Circle accepts, Cross returns, two-player online registration in one process, then all four local controllers registered in that same process. Tests used isolated SDL virtual gamepads. |
-| CT 200cc room routing | Pending compatibility investigation. | The current native room route table has no verified path for `vs_22`. Do not route it through a different mode or advertise it as available. |
+| CT 200cc room routing | Compatibility review found a server/client difference. | The official web service labels `vs_22`, but the inspected client selector and region-context source do not implement it. No verified route exists in the native integration. Do not route it through a different mode or advertise it as available. See [sources and scope](RETRO-COMPATIBILITY.md). |
 | Launcher updates | Stable release checks official version information. | Download, staging and repair/application still need implementation and tests. Replacing running native code is not implemented. |
-| Hardware coverage | DualSense Edge Bluetooth was verified by the user in 1.1.0. Existing virtual-controller and aspect-ratio tests remain relevant. | More physical models, simultaneous controllers and the integrated GPU still need validation. |
+| Hardware coverage | DualSense Edge Bluetooth was verified by the user in 1.1.0. Existing virtual-controller, aspect-ratio and RTX 4090 race tests remain relevant. The AMD integrated GPU passed startup and native Options navigation in a lab-only low-power-adapter build. | More physical models and simultaneous physical controllers need validation. The AMD test does not certify race performance or alter public GPU selection. |
 
 My Stuff files intended to survive updates belong under
 `UserData/MyStuff/CTGP` or `UserData/MyStuff/RetroRewind`. The legacy directories
@@ -45,3 +45,8 @@ The default face buttons now follow Nintendo positions. On DualSense, Circle
 accepts/accelerates and Cross returns/brakes; Triangle maps to X and Square to Y.
 Explicit custom bindings remain supported. Online display naming is changed in
 memory without editing the raw language bank, BMG commands or save-bank paths.
+
+The public 1.2.0 installer subsequently completed a real offline update through
+its embedded runtime, translating and compiling the user's PAL disc locally.
+All 63 checked persistent UserData files stayed byte-identical and
+GameData.previous retained the old game. See [verification](VERIFICATION.md).

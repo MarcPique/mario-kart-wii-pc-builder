@@ -113,9 +113,9 @@ Capturas reales de las pruebas locales: instalador, menús nativos y carreras. S
 
 <p align="center"><img src="docs/screenshots/installer.png" width="800" alt="Elige tu disco, carpeta e idioma y compila el juego"></p>
 
-| Menú original, Retro WFC y salida al escritorio | Opciones de pantalla y selector de formato |
+| Menú original, Online y salida al escritorio | Opciones de pantalla y selector de formato |
 |---|---|
-| ![Menú principal con Retro WFC y Salir al escritorio](docs/screenshots/main-menu-exit.png) | ![Pantalla con Formato en la fila inferior](docs/screenshots/advanced-options.png) |
+| ![Menú principal con Online y Salir al escritorio](docs/screenshots/online-two-menu.png) | ![Pantalla con Formato en la fila inferior](docs/screenshots/advanced-options.png) |
 | **Opciones avanzadas en la pausa** | **Ajustes durante una carrera pausada** |
 | ![Opciones avanzadas integradas en la pausa](docs/screenshots/pause-menu.png) | ![Opciones desde una carrera sin barra flotante](docs/screenshots/pause-settings.png) |
 | **Català · idioma revisado en vivo** | **Galego · idioma revisado en vivo** |
@@ -139,7 +139,11 @@ Capturas reales de las pruebas locales: instalador, menús nativos y carreras. S
 
 En la selección de carné, entra en **Opciones → Opciones avanzadas**. Durante una carrera local, abre la pausa y elige **Opciones avanzadas**. No necesitas F10 ni una barra flotante durante el juego.
 
-El botón grande inferior recorre **Pantalla → Calidad gráfica → Idioma → Mandos → Actualizaciones → Resolución interna → Paquetes de texturas**. El selector de los **16 formatos está en la primera página, Pantalla**, en la fila inferior **Formato**.
+El botón grande inferior recorre **Pantalla → Calidad gráfica → Idioma → Mandos → Actualizaciones → Resolución interna → Paquetes de texturas → My Stuff → Partidas**. El selector de los **16 formatos está en la primera página, Pantalla**, en la fila inferior **Formato**.
+
+**My Stuff** ofrece las cinco opciones originales: Desactivado, CTGP, Retro Rewind y las dos variantes de solo música. Copia tus archivos en `UserData/MyStuff/CTGP/` o `UserData/MyStuff/RetroRewind/`, selecciona el modo y pulsa **Aplicar** desde Opciones. La preparación se hace en segundo plano y las lecturas en curso conservan su contenido anterior. Los archivos se observan en las siguientes cargas; los cinco temas de fondo reservados también se pueden añadir durante la sesión. No se admiten rutas nuevas que alteren los índices de archivos ya usados por el juego.
+
+**Partidas** permite cambiar entre los dos bancos de guardado, con confirmación y **Cancelar** inicialmente seleccionado. El juego vuelve al título y recarga los carnés **en el mismo proceso**. Está disponible desde Opciones con la partida inactiva; una operación de guardado pendiente o un banco no válido conserva el anterior.
 
 ## Online habilitado
 
@@ -152,8 +156,8 @@ Se han verificado el login, la creación y cierre de una sala de amigos y la ent
 ## Límites actuales
 
 - **Cuatro jugadores online desde un único PC no están implementados**; el protocolo actual admite dos por conexión.
-- La ruta específica para salas **CT 200cc** no está disponible.
-- No hay selector **My Stuff** ni cambio de partida separada durante la sesión. La preparación experimental de My Stuff está desactivada en los arranques normales.
+- La ruta específica para salas **CT 200cc** no está disponible: el servidor reconoce `vs_22`, pero el selector y la lógica de regiones de la versión integrada no ofrecen ese modo. [Comprobaciones y alcance](docs/RETRO-COMPATIBILITY.md).
+- **My Stuff** requiere conservar los índices de archivos existentes; no puede añadir cualquier ruta nueva durante una sesión. El cambio de banco de **Partidas** se hace desde Opciones con el guardado inactivo, y vuelve al título sin reiniciar el proceso.
 - **Actualizaciones** comprueba versiones y avisa; no reemplaza el código del juego mientras está en ejecución. No están integradas todas las funciones del launcher externo de Retro Rewind.
 - La revisión de idiomas no certifica todas las traducciones heredadas ni cada disposición de texto. Las pruebas de mandos, GPU, pantallas y paquetes no certifican todas las combinaciones de hardware y contenido.
 
