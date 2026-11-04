@@ -6,6 +6,7 @@ sys.stderr.reconfigure(encoding='utf-8',errors='replace')
 os.environ['PYTHONUTF8']='1';os.environ['PYTHONIOENCODING']='utf-8'
 HERE=Path(__file__).resolve().parent
 sys.path.insert(0,str(HERE))
+import staged_update
 PINS=json.loads((HERE/'pins.json').read_text())
 CREATE_NO_WINDOW=0x08000000 if os.name=='nt' else 0
 
@@ -197,12 +198,23 @@ def desktop_exe(launcher,directory,root):
 def main(options):
     iso=Path(options.iso).resolve(strict=True);dest=Path(os.path.expandvars(options.install_dir)).resolve()
     if iso.suffix.lower() not in ['.iso','.wbfs','.rvz']:raise ValueError('Selecciona una imagen ISO, WBFS o RVZ.')
+    stage_only=getattr(options,'stage_update',False)
+    if (dest/staged_update.JOURNAL).exists():
+        if not (dest/'.mkwii-builder/.mkwii-builder-workspace').is_file():raise ValueError('Recuperación fuera de un workspace del builder')
+        with staged_update.build_lock(dest/'.mkwii-builder'):staged_update.recover(dest)
     if (dest/'GameData').exists() and not (dest/'mkwii-pc-install.json').exists():raise ValueError('El destino contiene otra instalación. Selecciona una carpeta nueva.')
-    dest.mkdir(parents=True,exist_ok=True);actual_work=dest/'.mkwii-builder';actual_work.mkdir(exist_ok=True);(actual_work/'.mkwii-builder-workspace').touch();work=native_workspace(actual_work)
+    if (dest/staged_update.CANDIDATE).exists():raise ValueError('Hay una actualización preparada. Aplícala antes de compilar otra.')
+    if stage_only:
+        staged_update.owned(dest)
+        if options.desktop_dir:raise ValueError('La preparación no puede crear un EXE de escritorio')
+    dest.mkdir(parents=True,exist_ok=True);actual_work=dest/'.mkwii-builder'
+    staged_update.plain(actual_work,dest);staged_update.plain(actual_work/'.mkwii-builder-workspace',dest)
+    actual_work.mkdir(exist_ok=True);(actual_work/'.mkwii-builder-workspace').touch();work=native_workspace(actual_work)
     cache=Path(options.cache_dir).resolve() if options.cache_dir else work/'downloads';log_path=work/'builder.log'
     jobs=max(1,min(options.jobs,os.cpu_count() or 2));payload=HERE.parent
     if shutil.disk_usage(dest).free<20*1024**3:raise ValueError('Se necesitan al menos 20 GiB libres para la compilación local.')
-    with log_path.open('w',encoding='utf-8',buffering=1) as log:
+    with staged_update.build_lock(actual_work),log_path.open('w',encoding='utf-8',buffering=1) as log:
+        if (dest/staged_update.CANDIDATE).exists() or (dest/staged_update.JOURNAL).exists():raise ValueError('Hay una actualización preparada o pendiente de recuperación')
         setup=download(PINS['setup'],cache,options.offline);prepare_setup(setup,work)
         nod=work/'Install/Toolkit/nodtool.exe';data=work/'Install/GameAssets/DATA'
         signature={'path':str(iso),'bytes':iso.stat().st_size,'mtime':iso.stat().st_mtime_ns};disc_marker=work/'disc-ready.json'
@@ -243,32 +255,38 @@ def main(options):
         prepare_original_ui.main();make_locale_bank.main()
         (game/'portable-data.txt').write_text('Mario Kart Wii PC portable data\n')
         create_launcher(work,stage,log)
-        # Publish the new immutable data in one directory rename; preserve UserData.
+        builder=getattr(options,'builder_exe',None)
+        if builder:
+            tools=native/'Tools';tools.mkdir(exist_ok=True)
+            shutil.copy2(Path(builder).resolve(strict=True),tools/'MKWii-PC-Builder.exe')
+        (stage/'portable.txt').write_text('Keep Mario Kart Wii.exe, GameData and UserData together.\n')
+        for name in ['LICENSE','THIRD-PARTY-NOTICES.md','GAME-README.txt']:
+            if (payload/name).exists():shutil.copy2(payload/name,stage/('LEEME.txt' if name=='GAME-README.txt' else name))
+        report={'builder_version':PINS['version'],'game_id':'RMCP01','retro_rewind':'6.13.4','native_sha256':sha(native/'RetroRewind.exe'),'game_exe':str(dest/'Mario Kart Wii.exe'),'language':options.language,'created_at':time.time(),'game_files_uploaded':False}
+        (stage/'mkwii-pc-install.json').write_text(json.dumps(report,indent=2))
+        emit('verify','Verificando todos los archivos preparados...',94)
+        staged_update.prepare(stage,dest,allow_new=not stage_only)
+        if stage_only:
+            emit('complete','Actualización preparada. La sesión actual conserva sus archivos.',100,staged_update=True,activation='next_launch',log=str(log_path))
+            return
         emit('install','Publicando el juego y creando el EXE del escritorio...',95)
-        old=dest/'GameData';previous=dest/'GameData.previous'
-        if not game.resolve().is_relative_to(actual_work.resolve()) or old.resolve().parent!=dest:raise ValueError('Publicación fuera del destino elegido')
-        if old.is_symlink() or (hasattr(old,'is_junction') and old.is_junction()):raise ValueError('GameData no puede ser un enlace')
-        if previous.exists():raise ValueError('Existe GameData.previous de una actualización anterior. Consérvala o muévela antes de actualizar.')
-        if old.exists():old.rename(previous)
-        try:shutil.move(game,old)
+        try:
+            with staged_update.build_lock(dest,name='.mkwii-launch.lock'):staged_update.apply(dest,allow_new=True)
+        except (staged_update.WorkspaceBusyError,staged_update.InstallationBusyError):
+            emit('complete','Actualización preparada; la sesión abierta conserva sus archivos.',100,staged_update=True,activation='next_launch',log=str(log_path))
+            return
         except Exception:
-            if previous.exists():previous.rename(old)
+            staged_update.quarantine_failed(dest)
             raise
-        shutil.copy2(stage/'Mario Kart Wii.exe',dest/'Mario Kart Wii.exe')
         user=dest/'UserData';user.mkdir(exist_ok=True);config=user/'Config.toml'
         if not config.exists():config.write_text(f'[paths]\ndvd_root = "../GameData/Install/GameAssets/DATA"\nretro_rewind_root = "../GameData/RetroRewind6"\n\n[video]\nwindow_width = 1280\nwindow_height = 720\ndisplay_mode = "windowed"\nresolution_multiplier = 2\nvsync = true\nshow_fps = false\n\n[system]\nlanguage = "{options.language}"\n\n[network]\nenabled = true\n',encoding='utf-8')
-        (dest/'portable.txt').write_text('Keep Mario Kart Wii.exe, GameData and UserData together.\n')
-        for name in ['LICENSE','THIRD-PARTY-NOTICES.md','GAME-README.txt']:
-            if (payload/name).exists():shutil.copy2(payload/name,dest/('LEEME.txt' if name=='GAME-README.txt' else name))
-        report={'builder_version':PINS['version'],'game_id':'RMCP01','retro_rewind':'6.13.4','native_sha256':sha(old/'Install/RetroRewind/RetroRewind.exe'),'game_exe':str(dest/'Mario Kart Wii.exe'),'language':options.language,'created_at':time.time(),'game_files_uploaded':False}
-        (dest/'mkwii-pc-install.json').write_text(json.dumps(report,indent=2))
         desktop=None
         if options.desktop_dir:desktop=desktop_exe(dest/'Mario Kart Wii.exe',Path(options.desktop_dir),dest)
         emit('complete','Instalación terminada. Tu juego se ha compilado localmente.',100,game_exe=report['game_exe'],desktop_exe=str(desktop) if desktop else None,log=str(log_path))
 
 if __name__=='__main__':
     languages=json.loads((HERE/'locales/pack.json').read_text(encoding='utf-8'))['languages']
-    parser=argparse.ArgumentParser();parser.add_argument('--iso',required=True);parser.add_argument('--install-dir',required=True);parser.add_argument('--desktop-dir');parser.add_argument('--cache-dir');parser.add_argument('--jobs',type=int,default=4);parser.add_argument('--language',choices=languages,default='es');parser.add_argument('--offline',action='store_true')
+    parser=argparse.ArgumentParser();parser.add_argument('--iso',required=True);parser.add_argument('--install-dir',required=True);parser.add_argument('--desktop-dir');parser.add_argument('--cache-dir');parser.add_argument('--jobs',type=int,default=4);parser.add_argument('--language',choices=languages,default='es');parser.add_argument('--offline',action='store_true');parser.add_argument('--stage-update',action='store_true');parser.add_argument('--builder-exe')
     try:main(parser.parse_args())
     except Exception as e:
         import traceback

@@ -1,4 +1,4 @@
-import unittest,tempfile,zipfile,sys,struct,argparse,os
+import unittest,tempfile,zipfile,sys,struct,argparse,os,subprocess
 from pathlib import Path
 ROOT=Path(__file__).resolve().parents[1]
 sys.path.insert(0,str(ROOT/'worker'))
@@ -6,6 +6,22 @@ import build_game
 from prepare_original_ui import pack,read
 
 class BuilderTests(unittest.TestCase):
+    def test_worker_imports_in_isolated_runtime(self):
+        result=subprocess.run([sys.executable,'-I',str(ROOT/'worker/build_game.py'),'--help'],capture_output=True,text=True)
+        self.assertEqual(result.returncode,0,result.stderr)
+        self.assertIn('--stage-update',result.stdout)
+
+    def test_rejects_linked_workspace_before_writing_a_marker_outside_the_install(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root=Path(folder);image=root/'own.wbfs';image.write_bytes(b'fixture')
+            dest=root/'game';dest.mkdir();outside=root/'outside';outside.mkdir();link=dest/'.mkwii-builder'
+            try:os.symlink(outside,link,target_is_directory=True)
+            except OSError:self.skipTest('Symbolic links unavailable on this host')
+            try:
+                with self.assertRaises(ValueError):build_game.main(argparse.Namespace(iso=str(image),install_dir=str(dest)))
+                self.assertEqual(list(outside.iterdir()),[])
+            finally:link.unlink()
+
     def test_retired_multisession_sources_removed_without_touching_user_data(self):
         with tempfile.TemporaryDirectory() as folder:
             root=Path(folder);work=root/'work';payload=root/'payload';(payload/'patches').mkdir(parents=True)

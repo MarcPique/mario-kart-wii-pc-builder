@@ -5,6 +5,7 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 using System.Runtime.Intrinsics.X86;
+using Microsoft.Win32.SafeHandles;
 
 namespace MkwiiPcBuilder;
 
@@ -54,7 +55,7 @@ internal sealed class RuntimeFiles : IDisposable
     }
 }
 
-internal sealed record BuildOptions(string Iso, string Destination, string? Desktop, string? Cache = null, string Language = "es", int Jobs = 4, bool Offline = false);
+internal sealed record BuildOptions(string Iso, string Destination, string? Desktop, string? Cache = null, string Language = "es", int Jobs = 4, bool Offline = false, bool StageUpdate = false);
 internal static class ProgressProtocol
 {
     public static bool TryGetStage(JsonElement root, out string? stage)
@@ -79,6 +80,8 @@ internal sealed class BuildRunner : IDisposable
         if (options.Desktop is not null) { start.ArgumentList.Add("--desktop-dir"); start.ArgumentList.Add(options.Desktop); }
         if (options.Cache is not null) { start.ArgumentList.Add("--cache-dir"); start.ArgumentList.Add(options.Cache); }
         if (options.Offline) start.ArgumentList.Add("--offline");
+        if (options.StageUpdate) start.ArgumentList.Add("--stage-update");
+        start.ArgumentList.Add("--builder-exe"); start.ArgumentList.Add(Environment.ProcessPath!);
         process = Process.Start(start) ?? throw new IOException("No se pudo iniciar el compilador");
         using var registration = token.Register(Cancel);
         async Task Pump(StreamReader reader) { while (await reader.ReadLineAsync() is { } line) output(line); }
@@ -90,11 +93,74 @@ internal sealed class BuildRunner : IDisposable
 
 internal static class Program
 {
+    private static int ApplyPreparedUpdate(string[] args)
+    {
+        string? Get(string key) { var i = Array.IndexOf(args, key); return i >= 0 && i + 1 < args.Length ? args[i + 1] : null; }
+        var root = Path.GetFullPath(Get("--install-dir") ?? throw new ArgumentException("Falta --install-dir"));
+        IDisposable? gate = null;
+        try
+        {
+            // El launcher conserva este bloqueo al ceder la publicación al helper.
+            if (Get("--install-lock-handle") is { } inherited)
+            {
+                if (!ulong.TryParse(inherited, out var raw) || raw == 0) throw new ArgumentException("Bloqueo heredado inválido");
+                var handle = new SafeFileHandle(unchecked((nint)raw), ownsHandle: true);
+                gate = new FileStream(handle, FileAccess.ReadWrite);
+            }
+            else gate = new FileStream(Path.Combine(root, ".mkwii-launch.lock"), FileMode.OpenOrCreate, FileAccess.ReadWrite, FileShare.None);
+            if (Get("--wait-pid") is { } wait)
+            {
+                if (!int.TryParse(wait, out var pid) || pid <= 0 || pid == Environment.ProcessId) throw new ArgumentException("Proceso de espera inválido");
+                try
+                {
+                    using var parent = Process.GetProcessById(pid);
+                    if (!parent.WaitForExit(30000)) throw new IOException("El arranque anterior no ha terminado; se conserva la actualización preparada");
+                }
+                catch (ArgumentException) { /* El launcher ya terminó. */ }
+            }
+            using var runtime = new RuntimeFiles(); runtime.Prepare();
+            var logDirectory = Path.Combine(root, "UserData", "Logs"); Directory.CreateDirectory(logDirectory);
+            using var log = new StreamWriter(Path.Combine(logDirectory, "PC-update-apply.log"), append: false, new UTF8Encoding(false)) { AutoFlush = true };
+            var start = new ProcessStartInfo(runtime.Python) { UseShellExecute = false, CreateNoWindow = true, RedirectStandardOutput = true, RedirectStandardError = true, StandardOutputEncoding = Encoding.UTF8, StandardErrorEncoding = Encoding.UTF8 };
+            foreach (var a in new[] { "-I", "-u", Path.Combine(Path.GetDirectoryName(runtime.Worker)!, "staged_update.py"), "--install-dir", root }) start.ArgumentList.Add(a);
+            using var worker = Process.Start(start) ?? throw new IOException("No se pudo publicar la actualización");
+            var writeLock = new object(); var previousUsable = false;
+            async Task Pump(StreamReader reader)
+            {
+                while (await reader.ReadLineAsync() is { } line)
+                {
+                    lock (writeLock)
+                    {
+                        log.WriteLine(line);
+                        try
+                        {
+                            using var message = JsonDocument.Parse(line);
+                            if (message.RootElement.ValueKind == JsonValueKind.Object && message.RootElement.TryGetProperty("previous_usable", out var usable) && usable.ValueKind == JsonValueKind.True) previousUsable = true;
+                        }
+                        catch (JsonException) { }
+                    }
+                    Console.WriteLine(line);
+                }
+            }
+            Task.WhenAll(Pump(worker.StandardOutput), Pump(worker.StandardError)).GetAwaiter().GetResult();
+            worker.WaitForExit(); var result = worker.ExitCode;
+            if ((result == 0 || previousUsable) && args.Contains("--launch-after-update"))
+            {
+                gate.Dispose(); gate = null;
+                Process.Start(new ProcessStartInfo(Path.Combine(root, "Mario Kart Wii.exe")) { UseShellExecute = false, WorkingDirectory = root });
+            }
+            return result;
+        }
+        finally { gate?.Dispose(); }
+    }
+
     [STAThread]
     private static int Main(string[] args)
     {
         try
         {
+            if (args.Length > 0) Console.OutputEncoding = new UTF8Encoding(false);
+            if (args.Contains("--apply-staged-update")) return ApplyPreparedUpdate(args);
             if (args.Contains("--test-progress-parser"))
             {
                 foreach (var sample in new[] { "{\"bytes\":783448,\"ids\":2998,\"languages\":[]}", "[]", "42", "{\"stage\":null}" })
@@ -103,7 +169,8 @@ internal static class Program
                     if (ProgressProtocol.TryGetStage(ignored.RootElement, out _)) return 1;
                 }
                 using var valid = JsonDocument.Parse("{\"stage\":\"complete\"}");
-                return ProgressProtocol.TryGetStage(valid.RootElement, out var stage) && stage == "complete" ? 0 : 1;
+                if (!ProgressProtocol.TryGetStage(valid.RootElement, out var stage) || stage != "complete") return 1;
+                Console.WriteLine("{\"stage\":\"complete\",\"message\":\"Actualización · català · euskara\"}"); return 0;
             }
             if (args.Contains("--version")) { Console.WriteLine("1.2.0"); return 0; }
             if (Array.IndexOf(args, "--render-preview") is var preview && preview >= 0 && preview + 1 < args.Length)
@@ -117,12 +184,18 @@ internal static class Program
                 using var runtime = new RuntimeFiles(); runtime.Prepare();
                 var p = new ProcessStartInfo(runtime.Python) { UseShellExecute = false, CreateNoWindow = true, RedirectStandardOutput = true, RedirectStandardError = true };
                 p.ArgumentList.Add("-I"); p.ArgumentList.Add("-c"); p.ArgumentList.Add("import sys,ssl,hashlib,zipfile;print(sys.version);print('Embedded runtime OK')");
-                using var child = Process.Start(p)!; Console.Write(child.StandardOutput.ReadToEnd()); Console.Error.Write(child.StandardError.ReadToEnd()); child.WaitForExit(); return child.ExitCode;
+                using var child = Process.Start(p)!; Console.Write(child.StandardOutput.ReadToEnd()); Console.Error.Write(child.StandardError.ReadToEnd()); child.WaitForExit();
+                if (child.ExitCode != 0) return child.ExitCode;
+                var smoke = new ProcessStartInfo(runtime.Python) { UseShellExecute = false, CreateNoWindow = true, RedirectStandardOutput = true, RedirectStandardError = true };
+                foreach (var a in new[] { "-I", runtime.Worker, "--help" }) smoke.ArgumentList.Add(a);
+                using var worker = Process.Start(smoke)!; var help = worker.StandardOutput.ReadToEnd(); Console.Error.Write(worker.StandardError.ReadToEnd()); worker.WaitForExit();
+                if (worker.ExitCode != 0 || !help.Contains("--stage-update")) return 1;
+                Console.WriteLine("Isolated worker imports OK"); return 0;
             }
             if (args.Contains("--iso"))
             {
                 string? Get(string key) { var i = Array.IndexOf(args, key); return i >= 0 && i + 1 < args.Length ? args[i + 1] : null; }
-                var options = new BuildOptions(Get("--iso")!, Get("--install-dir") ?? throw new ArgumentException("Falta --install-dir"), args.Contains("--no-desktop") ? null : Get("--desktop-dir") ?? Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory), Get("--cache-dir"), Get("--language") ?? "es", int.TryParse(Get("--jobs"), out var jobs) ? Math.Clamp(jobs, 1, 16) : 4, args.Contains("--offline"));
+                var options = new BuildOptions(Get("--iso")!, Get("--install-dir") ?? throw new ArgumentException("Falta --install-dir"), args.Contains("--no-desktop") || args.Contains("--stage-update") ? null : Get("--desktop-dir") ?? Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory), Get("--cache-dir"), Get("--language") ?? "es", int.TryParse(Get("--jobs"), out var jobs) ? Math.Clamp(jobs, 1, 16) : 4, args.Contains("--offline"), args.Contains("--stage-update"));
                 using var runtime = new RuntimeFiles(); runtime.Prepare(); using var runner = new BuildRunner();
                 return runner.Run(runtime, options, Console.WriteLine, CancellationToken.None).GetAwaiter().GetResult();
             }

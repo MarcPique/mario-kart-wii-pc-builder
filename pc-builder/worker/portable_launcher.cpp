@@ -11,6 +11,7 @@
 #include <vector>
 #include <stdexcept>
 #include <functional>
+#include <cstdint>
 namespace fs=std::filesystem;
 struct Handle {HANDLE v=nullptr;explicit Handle(HANDLE h):v(h){}~Handle(){if(v&&v!=INVALID_HANDLE_VALUE)CloseHandle(v);}Handle(const Handle&)=delete;};
 static void Ensure(bool ok,const char* message){if(!ok)throw std::runtime_error(std::string(message)+" (Windows "+std::to_string(GetLastError())+")");}
@@ -42,15 +43,55 @@ static void Configure(const fs::path& root){
     {std::ofstream out(temp,std::ios::binary|std::ios::trunc);out<<text;Ensure(out.good(),"No se pudo guardar la configuracion");}
     Ensure(MoveFileExW(temp.c_str(),config.c_str(),MOVEFILE_REPLACE_EXISTING|MOVEFILE_WRITE_THROUGH),"No se pudo actualizar la configuracion");
 }
+static void NoReparse(const fs::path& path,const fs::path& root){
+    auto current=path;
+    for(;;){
+        const auto attributes=GetFileAttributesW(current.c_str());
+        Ensure(attributes==INVALID_FILE_ATTRIBUTES||(attributes&FILE_ATTRIBUTE_REPARSE_POINT)==0,"Enlace inesperado en la instalacion");
+        if(current==root)break;
+        Ensure(current.has_parent_path()&&current.parent_path()!=current,"Ruta fuera de la instalacion");current=current.parent_path();
+    }
+}
+static std::wstring Quote(const std::wstring& text){
+    std::wstring result=L"\"";unsigned slashes=0;
+    for(auto c:text){if(c==L'\\'){++slashes;continue;}if(c==L'\"'){result.append(slashes*2+1,L'\\');result+=c;}else{result.append(slashes,L'\\');result+=c;}slashes=0;}
+    result.append(slashes*2,L'\\');return result+L'\"';
+}
+static bool StartPreparedUpdate(const fs::path& root,HANDLE gate){
+    const auto candidate=root/L".mkwii-update",journal=root/L"mkwii-pc-update-transaction.json";
+    NoReparse(candidate,root);NoReparse(journal,root);
+    if(!fs::exists(candidate/L"ready.json")&&!fs::exists(journal))return false;
+    NoReparse(candidate/L"ready.json",root);
+    auto tool=root/L"GameData"/L"Install"/L"RetroRewind"/L"Tools"/L"MKWii-PC-Builder.exe";
+    NoReparse(tool,root);
+    if(!fs::is_regular_file(tool)){tool=root/L"GameData.previous"/L"Install"/L"RetroRewind"/L"Tools"/L"MKWii-PC-Builder.exe";NoReparse(tool,root);}
+    Ensure(fs::is_regular_file(tool),"Falta el actualizador. Abre el builder para recuperar la instalacion");
+    const auto work=root/L".mkwii-builder",helpers=work/L"Updater",temporary=work/L"update-temp";
+    NoReparse(helpers,root);NoReparse(temporary,root);fs::create_directories(helpers);fs::create_directories(temporary);
+    const auto helper=helpers/(L"apply-"+std::to_wstring(GetCurrentProcessId())+L"-"+std::to_wstring(GetTickCount64())+L".exe");
+    fs::copy_file(tool,helper);
+    HANDLE inherited=nullptr;
+    Ensure(DuplicateHandle(GetCurrentProcess(),gate,GetCurrentProcess(),&inherited,0,TRUE,DUPLICATE_SAME_ACCESS),"No se pudo transferir el bloqueo de instalacion");
+    Handle held(inherited);
+    auto command=Quote(helper.native())+L" --apply-staged-update --install-dir "+Quote(root.native())+L" --wait-pid "+std::to_wstring(GetCurrentProcessId())+L" --install-lock-handle "+std::to_wstring(reinterpret_cast<uintptr_t>(inherited))+L" --launch-after-update";
+    Ensure(SetEnvironmentVariableW(L"TEMP",temporary.c_str())&&SetEnvironmentVariableW(L"TMP",temporary.c_str()),"No se pudo preparar la carpeta temporal local");
+    STARTUPINFOW startup{sizeof(startup)};startup.dwFlags=STARTF_USESHOWWINDOW;startup.wShowWindow=SW_HIDE;PROCESS_INFORMATION process{};
+    Ensure(CreateProcessW(helper.c_str(),command.data(),nullptr,nullptr,TRUE,CREATE_NO_WINDOW,nullptr,root.c_str(),&startup,&process),"No se pudo iniciar la actualizacion preparada");
+    CloseHandle(process.hThread);CloseHandle(process.hProcess);return true;
+}
 int WINAPI wWinMain(HINSTANCE,HINSTANCE,PWSTR,int){
     bool quiet=false;
     try{
         SetCurrentProcessExplicitAppUserModelID(L"MarioKartWii.Native");
         std::wstring self(32768,L'\0');auto length=GetModuleFileNameW(nullptr,self.data(),self.size());Ensure(length&&length<self.size(),"No se pudo localizar el juego");self.resize(length);
         const auto root=InstallationRoot(fs::path(self));const auto data=root/L"GameData";
-        Ensure(fs::is_regular_file(data/L"portable-data.txt")&&fs::is_regular_file(data/L"Install"/L"RetroRewind"/L"RetroRewind.exe"),"Conserva GameData junto a Mario Kart Wii.exe");
+        const auto lockPath=root/L".mkwii-launch.lock";NoReparse(lockPath,root);
+        Handle gate(CreateFileW(lockPath.c_str(),GENERIC_READ|GENERIC_WRITE,0,nullptr,OPEN_ALWAYS,FILE_ATTRIBUTE_NORMAL,nullptr));
+        Ensure(gate.v!=INVALID_HANDLE_VALUE,"Mario Kart Wii o su actualizador ya estan usando esta carpeta");
         const auto mutexName=L"Local\\MarioKartWii_"+std::to_wstring(std::hash<std::wstring>{}(root.native()));
         Handle mutex(CreateMutexW(nullptr,TRUE,mutexName.c_str()));Ensure(mutex.v&&GetLastError()!=ERROR_ALREADY_EXISTS,"Mario Kart Wii ya esta abierto en esta carpeta");
+        if(StartPreparedUpdate(root,gate.v))return 0;
+        Ensure(fs::is_regular_file(data/L"portable-data.txt")&&fs::is_regular_file(data/L"Install"/L"RetroRewind"/L"RetroRewind.exe"),"Conserva GameData junto a Mario Kart Wii.exe");
         Configure(root);
         std::ofstream log(root/L"UserData"/L"Logs"/L"PC-launcher.log",std::ios::trunc);
         const auto selection=root/L"UserData"/L"pc_mode.txt",request=root/L"UserData"/L"pc_restart.txt";

@@ -51,9 +51,12 @@ jobs:
       - name: Self-contained runtime smoke test
         shell: python
         run: |
-          import subprocess
+          import json, subprocess
           subprocess.run(['pc-builder/dist/MKWii-PC-Builder.exe', '--self-test'], check=True)
-          subprocess.run(['pc-builder/dist/MKWii-PC-Builder.exe', '--test-progress-parser'], check=True)
+          progress = subprocess.run(['pc-builder/dist/MKWii-PC-Builder.exe', '--test-progress-parser'], check=True, capture_output=True)
+          message = json.loads(progress.stdout.decode('utf-8'))
+          assert message['stage'] == 'complete'
+          assert message['message'] == 'Actualización · català · euskara'
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           name: MKWii-PC-Builder-Windows
