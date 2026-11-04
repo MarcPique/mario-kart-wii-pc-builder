@@ -158,7 +158,7 @@ def create_launcher(work,stage,log):
     icon=(workspace/'runtime/resources/MarioKartWii.ico').as_posix()
     resource.write_text(f'1 ICON "{icon}"\n',encoding='utf-8')
     run([bin/'x86_64-w64-mingw32-windres.exe',resource,work/'launcher-res.o'],work,log,'launcher-icon')
-    run([bin/'x86_64-w64-mingw32-clang++.exe','-std=c++20','-O2','-static','-municode','-mwindows',HERE/'portable_launcher.cpp',work/'launcher-res.o','-lole32','-lshell32','-o',stage/'Mario Kart Wii.exe'],work,log,'launcher')
+    run([bin/'x86_64-w64-mingw32-clang++.exe','-std=c++20','-O2','-static','-municode','-mwindows','-I'+str(workspace/'runtime/include'),HERE/'portable_launcher.cpp',work/'launcher-res.o','-lole32','-lshell32','-o',stage/'Mario Kart Wii.exe'],work,log,'launcher')
 
 def compile_native(work,log,jobs):
     w=work/'Install/BuildWorkspace';t=work/'Install/Toolkit';bin=t/'llvm-mingw/bin';deps=w/'Dependencies';cmake=t/'CMake/bin/cmake.exe';ninja=t/'Ninja/ninja.exe';build=w/'native-build'

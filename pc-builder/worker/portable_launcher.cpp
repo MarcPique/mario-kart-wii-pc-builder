@@ -1,4 +1,9 @@
+#ifndef _WIN32_WINNT
+#define _WIN32_WINNT 0x0A00
+#endif
+#ifndef UNICODE
 #define UNICODE
+#endif
 #define _UNICODE
 #define WIN32_LEAN_AND_MEAN
 #define NOMINMAX
@@ -42,9 +47,11 @@ static void Configure(const fs::path& root){
     {std::ofstream out(temp,std::ios::binary|std::ios::trunc);out<<text;Ensure(out.good(),"No se pudo guardar la configuracion");}
     Ensure(MoveFileExW(temp.c_str(),config.c_str(),MOVEFILE_REPLACE_EXISTING|MOVEFILE_WRITE_THROUGH),"No se pudo actualizar la configuracion");
 }
+#include "local_session_host.h"
 int WINAPI wWinMain(HINSTANCE,HINSTANCE,PWSTR,int){
     bool quiet=false;
     try{
+        SetProcessDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2);
         SetCurrentProcessExplicitAppUserModelID(L"MarioKartWii.Native");
         std::wstring self(32768,L'\0');auto length=GetModuleFileNameW(nullptr,self.data(),self.size());Ensure(length&&length<self.size(),"No se pudo localizar el juego");self.resize(length);
         const auto root=InstallationRoot(fs::path(self));const auto data=root/L"GameData";
@@ -65,10 +72,14 @@ int WINAPI wWinMain(HINSTANCE,HINSTANCE,PWSTR,int){
             const auto game=data/L"Install"/L"RetroRewind"/L"RetroRewind.exe";
             std::wstring command=L"\""+game.native()+L"\""+forwarded;
             STARTUPINFOW startup{sizeof(startup)};PROCESS_INFORMATION process{};const auto working=game.parent_path();
-            Ensure(CreateProcessW(game.c_str(),command.data(),nullptr,nullptr,FALSE,0,nullptr,working.c_str(),&startup,&process),"No se pudo iniciar el juego");
+            auto environment=LocalSessions::Environment({{L"MKW_PC_LAUNCHER_PID",std::to_wstring(GetCurrentProcessId())},{L"MKW_PC_SESSION_PRIMARY_PID",L""},{L"MKW_PC_LOCAL_ROLE",L""},{L"MKW_PC_LOCAL_INPUT",L""},{L"MKW_PC_SESSION_PLAYERS",L""}});
+            Ensure(CreateProcessW(game.c_str(),command.data(),nullptr,nullptr,FALSE,CREATE_UNICODE_ENVIRONMENT,environment.data(),working.c_str(),&startup,&process),"No se pudo iniciar el juego");
             Handle child(process.hProcess),thread(process.hThread);
             log<<"Started "<<mode<<" PID "<<process.dwProcessId<<"\n"<<std::flush;
-            WaitForSingleObject(child.v,INFINITE);DWORD exitCode=1;GetExitCodeProcess(child.v,&exitCode);
+            {LocalSessions::Host sessions(root,process.dwProcessId,log);
+                while(WaitForSingleObject(child.v,20)==WAIT_TIMEOUT)sessions.Tick();
+            }
+            DWORD exitCode=1;GetExitCodeProcess(child.v,&exitCode);
             log<<"Exited "<<mode<<" code "<<exitCode<<"\n"<<std::flush;
             if(fs::exists(request)){log<<"Graphics restart requested in-game\n"<<std::flush;Configure(root);continue;}
             return static_cast<int>(exitCode);

@@ -43,5 +43,8 @@
   "runtime/include/pc_session_profile.h",
   "runtime/include/pc_my_stuff_cache.h",
   "runtime/include/pc_local_input.h",
-  "runtime/src/pc_local_input.cpp"
+  "runtime/src/pc_local_input.cpp",
+  "runtime/include/pc_local_session_control.h",
+  "runtime/include/pc_local_sessions.h",
+  "runtime/src/pc_local_sessions.cpp"
 ]

@@ -13,13 +13,20 @@ int main(int argc,char** argv){
     using namespace PcLocalInput;
     if(argc==2){
         const bool liveness=std::string(argv[1])=="--liveness";
-        assert(liveness||std::string(argv[1])=="--follower");Initialize();assert(Follower());
+        const bool single=std::string(argv[1])=="--single";
+        assert(liveness||single||std::string(argv[1])=="--follower");Initialize();assert(Follower());
         const std::string group=std::getenv("MKW_PC_LOCAL_INPUT");
         const auto prefix=std::wstring(L"Local\\MkwInputTest_")+std::wstring(group.begin(),group.end());
         auto ready=OpenEventW(EVENT_MODIFY_STATE,FALSE,(prefix+L"_ready").c_str());
         auto stale=OpenEventW(SYNCHRONIZE,FALSE,(prefix+L"_stale").c_str());assert(ready&&stale);
         Pads pads;const auto deadline=GetTickCount64()+5000;
         do{pads=Receive();if(pads[0][10]==0)break;Sleep(5);}while(GetTickCount64()<deadline);
+        if(single){
+            assert(BigEndian::Read16(pads[0].data())==0x400&&pads[1][10]==255);
+            Motor(0,1);Motor(1,2);SetEvent(ready);assert(WaitForSingleObject(stale,5000)==WAIT_OBJECT_0);
+            Sleep(350);const auto neutral=Receive();assert(neutral[0][10]==0&&neutral[1][10]==255);
+            Stop();CloseHandle(ready);CloseHandle(stale);return 0;
+        }
         if(liveness){
             assert(pads[0][10]==0);
             const auto wireName=std::wstring(L"Local\\MarioKartWiiInput_")+std::wstring(group.begin(),group.end())+L"_lock";
@@ -71,6 +78,14 @@ int main(int argc,char** argv){
     DWORD exitCode=1;assert(GetExitCodeProcess(child.hProcess,&exitCode)&&exitCode==0);
     const auto stopped=Publish(pads);assert(!stopped.connected&&stopped.motors[0]==0&&stopped.motors[1]==0);
     CloseHandle(child.hProcess);ResetEvent(ready);ResetEvent(stale);
+    BigEndian::Write16(pads[2].data(),0x400);Publish(pads);
+    SetEnvironmentVariableA("MKW_PC_SESSION_PLAYERS","3");command=L"\""+std::wstring(executable)+L"\" --single";
+    assert(CreateProcessW(executable,command.data(),nullptr,nullptr,FALSE,CREATE_NO_WINDOW,nullptr,nullptr,&startup,&child));CloseHandle(child.hThread);
+    const auto singleDeadline=GetTickCount64()+5000;
+    while(WaitForSingleObject(ready,0)!=WAIT_OBJECT_0&&GetTickCount64()<singleDeadline){Publish(pads);Sleep(5);}
+    assert(WaitForSingleObject(ready,0)==WAIT_OBJECT_0);const auto singleFeedback=Publish(pads);assert(singleFeedback.connected&&singleFeedback.motors[0]==1&&singleFeedback.motors[1]==0);
+    SetEvent(stale);assert(WaitForSingleObject(child.hProcess,5000)==WAIT_OBJECT_0);assert(GetExitCodeProcess(child.hProcess,&exitCode)&&exitCode==0);
+    CloseHandle(child.hProcess);ResetEvent(ready);ResetEvent(stale);SetEnvironmentVariableA("MKW_PC_SESSION_PLAYERS",nullptr);
     command=L"\""+std::wstring(executable)+L"\" --liveness";
     assert(CreateProcessW(executable,command.data(),nullptr,nullptr,FALSE,CREATE_NO_WINDOW,nullptr,nullptr,&startup,&child));CloseHandle(child.hThread);
     const auto closeDeadline=GetTickCount64()+5000;
@@ -81,5 +96,5 @@ int main(int argc,char** argv){
     CloseHandle(child.hProcess);CloseHandle(ready);CloseHandle(stale);
     assert(BeginHost(otherGroup)&&Host());assert(Generation()>firstGeneration);
     assert(EndHost()&&!Host()&&!Follower());
-    std::cout<<"Two-process input: J3/J4, analog input, short taps, rumble, loading pause and live enable/disable/re-enable without process restart passed\n";
+    std::cout<<"Two-process input: 2+1/2+2, J3/J4, analog input, short taps, rumble, loading pause and live enable/disable/re-enable without process restart passed\n";
 }

@@ -10,6 +10,8 @@
 #include "pc_live_locale.h"
 #include "pc_texture_packs.h"
 #include "pc_aspect_ratio.h"
+#include "pc_local_sessions.h"
+#include "pc_local_input.h"
 #include "aurora_events.h"
 #include <cstring>
 #include <unordered_map>
@@ -87,6 +89,17 @@ uint32_t Invoke(CpuContext* ctx,uint32_t address,std::initializer_list<uint32_t>
 }
 uint32_t Alloc(CpuContext* ctx,uint32_t bytes){return Invoke(ctx,MKW_GADDR(80229814),{bytes,4,0});}
 uint32_t Section(){return Memory::Read32(Memory::Read32(MKW_GADDR(809C1E38)));}
+void ReportLocalSession(uint32_t page){
+    if(!PcLocalSessions::Active()&&!PcLocalInput::Follower())return;
+    const auto section=Section();if(!section||!Memory::Contains(section,0x380))return;
+    const auto layers=Memory::Read32(section+0x37C);if(!layers||layers>11||Memory::Read32(section+0x354+(layers-1)*4)!=page)return;
+    using Phase=PcLocalSessionControl::Phase;const auto id=Memory::Read32(page+4);auto phase=Phase::Menu;
+    if(id==67)phase=Phase::Race;else if(id==137)phase=Phase::Error;else if(id==157)phase=Phase::Lobby;else if(id==139||id==140||id==141)phase=Phase::Online;
+    else if(id==107||id==108||id==109||id==110||id==111||id==129||id==130||id==145||id==146||id==257||id==263)phase=Phase::Selection;
+    unsigned total=0,local=0;const auto racedata=Memory::Read32(MKW_GADDR(809BD728));
+    if(racedata&&Memory::Contains(racedata,0x47)){total=Memory::Read8(racedata+0x44);local=Memory::Read8(racedata+0x45);if(total>12||local>4||local>total)total=local=0;}
+    PcLocalSessions::Report(Memory::Read32(section),id,phase,total,local);
+}
 uint32_t Label(uint32_t key,const std::u16string& value){messages[kLabel+key]=value;return kLabel+key;}
 void Text(CpuContext* ctx,uint32_t control,uint32_t key,const std::u16string& value){if(control)Invoke(ctx,MKW_GADDR(8063DDB4),{control,Label(key,value),0});}
 using PcMenuLocale::T;
@@ -250,6 +263,8 @@ void Configure(CpuContext* ctx,uint32_t page) {
     auto controllerChoices=choices2;
     auto controllerNames=names2;
     for(unsigned i=0;i<4;++i){controllerNames[i]=T(u"Jugador ",u"Player ",u"Joueur ",u"Spieler ",u"Giocatore ");controllerNames[i].push_back(static_cast<char16_t>(u'1'+i));controllerChoices[i]={T(u"Vaciar",u"Clear",u"Effacer",u"Leeren",u"Cancella"),T(u"Asignar",u"Assign",u"Attribuer",u"Zuordnen",u"Assegna")};}
+    controllerNames[4]=T(u"Jugadores online",u"Online players",u"Joueurs en ligne",u"Online-Spieler",u"Giocatori online");
+    controllerChoices[4]=PcLocalSessions::Available()?std::vector<std::u16string>{u"1",u"2",u"3",u"4"}:std::vector<std::u16string>{u"1",u"2"};
     auto updateChoices=choices2;auto updateNames=names2;
     updateNames[0]=T(u"Comprobacion",u"Version check",u"Vérification",u"Versionsprüfung",u"Verifica");
     updateChoices[0]={T(u"Revisar",u"Check",u"Vérifier",u"Prüfen",u"Verifica")};
@@ -269,9 +284,9 @@ void Configure(CpuContext* ctx,uint32_t page) {
     const auto& choices=sheet==9?saveChoices:sheet==8?myStuffChoices:sheet==7?featureChoices:sheet==5?roomChoices:sheet==4?updateChoices:sheet==3?controllerChoices:sheet==2?choices2:sheet==1?choices1:choices0;const auto& names=sheet==9?saveNames:sheet==8?myStuffNames:sheet==7?featureNames:sheet==5?roomNames:sheet==4?updateNames:sheet==3?controllerNames:sheet==2?names2:sheet==1?names1:names0;
     for(unsigned i=0;i<5;++i) {
         auto radio=page+0x6C4+i*0x298;const auto count=std::min<unsigned>(originalRadioCounts[i],choices[i].size());
-        const bool hidden=sheet==6||(sheet==9&&i>1)||(sheet==8&&i>1)||(sheet==7&&i>2)||(sheet==2&&i>2)||(sheet==3&&i>3)||((sheet==4||sheet==5)&&i>0);
+        const bool hidden=sheet==6||(sheet==9&&i>1)||(sheet==8&&i>1)||(sheet==7&&i>2)||(sheet==2&&i>2)||((sheet==4||sheet==5)&&i>0);
         Memory::Write8(radio+0x80,hidden);Memory::Write8(radio+0x285,hidden);
-        Memory::Write32(radio+0x200,count);auto selected=std::min(sheet==9?(i==0?unsigned(selectedSeparateSave):0u):sheet==7?(i==0?unsigned(PcTexturePacks::Enabled()):0u):sheet>=4?0u:sheet==3?static_cast<unsigned>(settings_overlay::PcControllerSelected(i,selectedController)):settings_overlay::PcGraphicsValue(sheet,i),count?count-1:0);
+        Memory::Write32(radio+0x200,count);auto selected=std::min(sheet==9?(i==0?unsigned(selectedSeparateSave):0u):sheet==7?(i==0?unsigned(PcTexturePacks::Enabled()):0u):sheet>=4?0u:sheet==3?(i==4?PcLocalSessions::Players()-1:static_cast<unsigned>(settings_overlay::PcControllerSelected(i,selectedController))):settings_overlay::PcGraphicsValue(sheet,i),count?count-1:0);
         Memory::Write32(radio+0x204,selected);Memory::Write32(radio+0x208,selected);
         Text(ctx,radio,10+i,names[i]);const auto options=Memory::Read32(radio+0x294);
         for(unsigned j=0;j<originalRadioCounts[i];++j){auto button=options+j*0x17C;Memory::Write8(button+0x80,j>=count);Invoke(ctx,MKW_GADDR(80606C48),{button,j==selected});if(j<count)Text(ctx,button,20+i*4+j,choices[i][j]);}
@@ -446,6 +461,7 @@ extern "C" void PcPageInit(CpuContext* ctx){const auto page=ctx->gpr[3],id=ctx->
     // memory while the section is loading, just like its existing pages do.
     if(!textScratch)textScratch=Alloc(ctx,4096);
     if(id==0x5A){
+        if(const auto count=PcLocalSessions::Players();count>2){const auto online=Memory::Read32(page+0xCA8);std::u16string label=u"Retro WFC (";label.push_back(char16_t(u'0'+count));label+=u")";Text(ctx,online,176,label);}
         if(!Memory::Read32(Section()+8+0x53*4))Invoke(ctx,MKW_GADDR(80622D08),{Section(),0x53});
         const auto confirmation=Memory::Read32(Section()+8+0x53*4);
         AddButton(ctx,page,confirmation+0x294,confirmation+0x294,1,false,MKW_GADDR(8085110C));
@@ -491,7 +507,7 @@ extern "C" void PcSettingsButton(CpuContext* ctx){if(ctx->gpr[3]!=activePage){MK
 REGISTER_NATIVE_WRAPPER_AS(0x80853654,PcSettingsButton,"PcOriginalUI_GraphicsSheet");
 extern "C" void PcSettingsBack(CpuContext* ctx){if(ctx->gpr[3]==activePage)Close(ctx,activePage);else MKW_GUEST_NEXT(808536B4)(ctx);}
 REGISTER_NATIVE_WRAPPER_AS(0x808536B4,PcSettingsBack,"PcOriginalUI_GraphicsBack");
-extern "C" void PcRadioClick(CpuContext* ctx){if(ctx->gpr[3]!=activePage){MKW_GUEST_NEXT(80853714)(ctx);return;}auto row=Memory::Read32(ctx->gpr[4]+0x20C);if(sheet==9){if(row==0){selectedSeparateSave=ctx->gpr[6]!=0;saveFailed=false;Configure(ctx,activePage);}else if(row==1){if(ownerPage&&Memory::Read32(ownerPage+4)==0xC0&&selectedSeparateSave!=NANDRetroSaveSeparate())OpenExit(ctx,activePage,true);else Bottom(ctx,SaveDetail());}}else if(sheet==8){if(row==1){DVDMyStuffOpenFolder();}else if(ownerPage&&Memory::Read32(ownerPage+4)==0xC0){myStuffFailed=!DVDMyStuffRequest(selectedMyStuff);Configure(ctx,activePage);}else Bottom(ctx,MyStuffDetail());}else if(sheet==7){if(row==0)PcTexturePacks::SetEnabled(ctx->gpr[6]!=0);else if(row==1)PcTexturePacks::Reload();else if(row==2)PcTexturePacks::OpenFolder();Configure(ctx,activePage);}else if(sheet==5){if(row==0&&selectedRoom<roomIds.size()){pendingRoomId=roomIds[selectedRoom];RT_LOGF("pc-ui-test","Public room selected in native menu\n");Close(ctx,activePage);}}else if(sheet==4){if(row==0){PcOnlineRooms::RefreshUpdates();Bottom(ctx,UpdateDetail());}}else if(sheet==3&&row<4){const bool assigned=selectedController<visibleControllerIds.size()&&settings_overlay::PcControllerAssign(row,visibleControllerIds[selectedController],ctx->gpr[6]!=0);Configure(ctx,activePage);if(!assigned)Bottom(ctx,T(u"Mando desconectado. Elige otro dispositivo.",u"Controller disconnected. Choose another device.",u"Manette déconnectée. Choisissez un appareil.",u"Controller getrennt. Anderes Gerät wählen.",u"Controller scollegato. Scegli un altro dispositivo."));}else if(row<5&&sheet<3)settings_overlay::SetPcGraphicsValue(sheet,row,ctx->gpr[6]);}
+extern "C" void PcRadioClick(CpuContext* ctx){if(ctx->gpr[3]!=activePage){MKW_GUEST_NEXT(80853714)(ctx);return;}auto row=Memory::Read32(ctx->gpr[4]+0x20C);if(sheet==9){if(row==0){selectedSeparateSave=ctx->gpr[6]!=0;saveFailed=false;Configure(ctx,activePage);}else if(row==1){if(ownerPage&&Memory::Read32(ownerPage+4)==0xC0&&selectedSeparateSave!=NANDRetroSaveSeparate())OpenExit(ctx,activePage,true);else Bottom(ctx,SaveDetail());}}else if(sheet==8){if(row==1){DVDMyStuffOpenFolder();}else if(ownerPage&&Memory::Read32(ownerPage+4)==0xC0){myStuffFailed=!DVDMyStuffRequest(selectedMyStuff);Configure(ctx,activePage);}else Bottom(ctx,MyStuffDetail());}else if(sheet==7){if(row==0)PcTexturePacks::SetEnabled(ctx->gpr[6]!=0);else if(row==1)PcTexturePacks::Reload();else if(row==2)PcTexturePacks::OpenFolder();Configure(ctx,activePage);}else if(sheet==5){if(row==0&&selectedRoom<roomIds.size()){pendingRoomId=roomIds[selectedRoom];RT_LOGF("pc-ui-test","Public room selected in native menu\n");Close(ctx,activePage);}}else if(sheet==4){if(row==0){PcOnlineRooms::RefreshUpdates();Bottom(ctx,UpdateDetail());}}else if(sheet==3&&row==4){PcLocalSessions::SetPlayers(ctx->gpr[6]+1);Configure(ctx,activePage);}else if(sheet==3&&row<4){const bool assigned=selectedController<visibleControllerIds.size()&&settings_overlay::PcControllerAssign(row,visibleControllerIds[selectedController],ctx->gpr[6]!=0);Configure(ctx,activePage);if(!assigned)Bottom(ctx,T(u"Mando desconectado. Elige otro dispositivo.",u"Controller disconnected. Choose another device.",u"Manette déconnectée. Choisissez un appareil.",u"Controller getrennt. Anderes Gerät wählen.",u"Controller scollegato. Scegli un altro dispositivo."));}else if(row<5&&sheet<3)settings_overlay::SetPcGraphicsValue(sheet,row,ctx->gpr[6]);}
 REGISTER_NATIVE_WRAPPER_AS(0x80853714,PcRadioClick,"PcOriginalUI_GraphicsChoice");
 extern "C" void PcRadioSelect(CpuContext* ctx){if(ctx->gpr[3]!=activePage){MKW_GUEST_NEXT(8085389C)(ctx);return;}const auto row=Memory::Read32(ctx->gpr[4]+0x20C);Bottom(ctx,sheet==9?SaveDetail():sheet==8?MyStuffDetail():sheet==3&&row<4?settings_overlay::PcControllerPlayerName(row):sheet==4?UpdateDetail():T(u"Izquierda/derecha y A: elegir. B: volver.",u"Left/right and A: select. B: back.",u"Gauche/droite et A : choisir. B : retour.",u"Links/rechts und A: wählen. B: zurück.",u"Sinistra/destra e A: scegli. B: indietro."));}
 REGISTER_NATIVE_WRAPPER_AS(0x8085389C,PcRadioSelect,"PcOriginalUI_GraphicsHint");
@@ -502,6 +518,7 @@ REGISTER_NATIVE_WRAPPER_AS(0x80853A10,PcTextChange,"PcOriginalUI_GraphicsValueTe
 extern "C" void PcExternalSelect(CpuContext* ctx){if(ctx->gpr[3]!=activePage){MKW_GUEST_NEXT(80853684)(ctx);return;}Bottom(ctx,T(u"Ver la siguiente pagina de opciones avanzadas.",u"Open the next page of advanced options.",u"Ouvrir la page suivante des options avancées.",u"Nächste Seite der erweiterten Optionen öffnen.",u"Apri la pagina successiva delle opzioni avanzate."));}
 REGISTER_NATIVE_WRAPPER_AS(0x80853684,PcExternalSelect,"PcOriginalUI_GraphicsNextHint");
 extern "C" void PcPageUpdate(CpuContext* ctx){const auto page=ctx->gpr[3];MKW_GUEST_NEXT(80602338)(ctx);Position(page);
+    ReportLocalSession(page);
     if(exitPrompt&&exitClosing&&Memory::Read32(exitPrompt+8)<=1){Memory::Write32(exitPrompt+0x6C,exitOriginalBack);Memory::Write8(exitPrompt+0x8D,exitOriginalRepeat);Memory::Write8(exitPrompt+0x96,exitOriginalPointer);for(auto [control,hidden]:exitHidden)Memory::Write8(control+0x80,hidden);exitHidden.clear();exitPrompt=0;exitClosing=false;if(exitOwner)Invoke(ctx,MKW_GADDR(80602378),{exitOwner});exitOwner=0;RT_LOGF("pc-exit","Exit cancelled; returned to main menu\n");}
     const auto myStuffResult=DVDMyStuffPump(activePage&&sheet==8&&!closingPc&&ownerPage&&Memory::Read32(ownerPage+4)==0xC0);
     if(myStuffResult&&activePage&&sheet==8&&!closingPc){myStuffFailed=myStuffResult==-1;if(myStuffResult==1)selectedMyStuff=DVDMyStuffMode();Configure(ctx,activePage);}
@@ -696,7 +713,7 @@ REGISTER_NATIVE_WRAPPER_AS(0x8015DF4C,PcDvdPathVisibility,"PcOriginalDvd_PathVis
 extern "C" void PcDvdOpenVisibility(CpuContext* ctx){if(!DVDMyStuffEntryVisible(static_cast<int32_t>(ctx->gpr[3]))){ctx->gpr[3]=0;return;}MKW_GUEST_NEXT(8015E254)(ctx);}
 REGISTER_NATIVE_WRAPPER_AS(0x8015E254,PcDvdOpenVisibility,"PcOriginalDvd_OpenVisibility");
 
-extern "C" void PcMainQuitClick(CpuContext* ctx){const auto owner=ctx->gpr[3];if(extraButtons.contains(owner)&&extraButtons.at(owner).button==ctx->gpr[4])OpenExit(ctx,owner);else MKW_GUEST_NEXT(8085110C)(ctx);}
+extern "C" void PcMainQuitClick(CpuContext* ctx){const auto owner=ctx->gpr[3];if(extraButtons.contains(owner)&&extraButtons.at(owner).button==ctx->gpr[4])OpenExit(ctx,owner);else {const auto online=Memory::Read32(owner+0xCA8);if(online&&ctx->gpr[4]==online&&PcLocalSessions::Players()>2&&!PcLocalInput::Follower()&&!PcLocalSessions::Begin()){Text(ctx,online,175,T(u"No se pudo iniciar el online local.",u"Unable to start local online.",u"Impossible de lancer le jeu en ligne local.",u"Lokales Online-Spiel konnte nicht starten.",u"Impossibile avviare il gioco online locale."));return;}MKW_GUEST_NEXT(8085110C)(ctx);}}
 REGISTER_NATIVE_WRAPPER_AS(0x8085110C,PcMainQuitClick,"PcOriginalUI_QuitMain");
 extern "C" void PcExitConfirmClick(CpuContext* ctx){if(ctx->gpr[3]!=exitPrompt){MKW_GUEST_NEXT(80652678)(ctx);return;}if(ctx->gpr[4]==exitPrompt+0x294){if(exitSwitchSave)saveApplyPending=true;else {RT_LOGF("pc-exit","Exit confirmed from native menu\n");ExitForAuroraWindowClose();}}CloseExit(ctx);}
 REGISTER_NATIVE_WRAPPER_AS(0x80652678,PcExitConfirmClick,"PcOriginalUI_QuitConfirm");

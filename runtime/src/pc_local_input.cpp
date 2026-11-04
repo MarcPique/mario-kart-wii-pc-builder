@@ -21,7 +21,7 @@ namespace PcLocalInput {
 namespace {
 enum class Role { Off,Host,Follower };
 struct Selection {
-    std::atomic<Role> role{Role::Off};std::string group;
+    std::atomic<Role> role{Role::Off};std::string group;unsigned followerPorts=2;
     Selection(){
         const auto* groupValue=std::getenv("MKW_PC_LOCAL_INPUT");
         const auto* roleValue=std::getenv("MKW_PC_LOCAL_ROLE");
@@ -29,7 +29,10 @@ struct Selection {
         if(!groupValue||!roleValue||!ValidGroup(groupValue))throw std::runtime_error("Invalid local input group");
         group=groupValue;
         if(std::string_view(roleValue)=="host")role=Role::Host;
-        else if(std::string_view(roleValue)=="follower")role=Role::Follower;
+        else if(std::string_view(roleValue)=="follower"){
+            role=Role::Follower;
+            if(const auto* count=std::getenv("MKW_PC_SESSION_PLAYERS");count&&std::string_view(count)=="3")followerPorts=1;
+        }
         else throw std::runtime_error("Invalid local input role");
     }
 };
@@ -167,7 +170,8 @@ Pads Receive(){
     std::lock_guard guard(LocalMutex());
     if(!Follower())return result;
     static Pads previous=Disconnected();static uint64_t previousAt=0;
-    auto& channel=Current();if(!channel.Lock())return channel.OwnerAlive()?SecondPair(previous,GetTickCount64(),previousAt,true):Disconnected();
+    const auto limited=[](Pads pads){if(Selected().followerPorts==1)pads[1]=Disconnected()[1];return pads;};
+    auto& channel=Current();if(!channel.Lock())return limited(channel.OwnerAlive()?SecondPair(previous,GetTickCount64(),previousAt,true):Disconnected());
     auto& shared=*channel.shared;const auto now=GetTickCount64();
     if(!shared.client||shared.client==GetCurrentProcessId()||!Fresh(now,shared.clientAt,1000)){
         if(shared.client!=GetCurrentProcessId())shared.motors={};
@@ -176,14 +180,14 @@ Pads Receive(){
         previous=shared.pads;previousAt=shared.frameAt;
         result=channel.OwnerAlive()?shared.presses.Consume(shared.pads,now,shared.frameAt,true):Disconnected();
     }else {previous=Disconnected();previousAt=0;}
-    channel.Unlock();
+    channel.Unlock();result=limited(result);
 #endif
     return result;
 }
 void Motor(unsigned port,uint32_t command){
 #if defined(_WIN32)
     std::lock_guard guard(LocalMutex());
-    if(!Follower()||port>=2||command>2)return;
+    if(!Follower()||port>=Selected().followerPorts||command>2)return;
     DesiredMotors()[port].store(command,std::memory_order_relaxed);
     auto& channel=Current();if(!channel.Lock())return;
     auto& shared=*channel.shared;

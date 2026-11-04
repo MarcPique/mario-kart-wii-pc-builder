@@ -34,6 +34,8 @@ jobs:
           if MKW_PC_LOCAL_ROLE=follower MKW_PC_PROFILE= /tmp/session-profiles --resolve; then exit 1; fi
       - name: Coordinated local input routing
         run: g++ -std=c++20 -O2 -Iruntime/include runtime/tests/pc_local_input_tests.cpp -o /tmp/local-input && /tmp/local-input
+      - name: Local launcher control messages
+        run: g++ -std=c++20 -O2 -Iruntime/include runtime/tests/pc_local_session_control_tests.cpp -o /tmp/local-session-control && /tmp/local-session-control
       - name: Immutable My Stuff cache contract
         run: g++ -std=c++20 -O2 -Iruntime/include runtime/tests/pc_my_stuff_cache_tests.cpp -o /tmp/my-stuff-cache && /tmp/my-stuff-cache
       - name: Texture archive paths and quotas

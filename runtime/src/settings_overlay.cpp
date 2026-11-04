@@ -15,6 +15,7 @@ extern "C" void DVDMyStuffStop();
 #include "aurora_events.h"
 #include "controller_button_names.h"
 #include "pc_local_input.h"
+#include "pc_local_sessions.h"
 #include "controller_mapping_wizard.h"
 #include "input_bindings.h"
 #include "game_graphics_options.h"
@@ -1530,6 +1531,7 @@ void HandleEvents(const AuroraEvent* events) noexcept {
 }
 
 void ReleaseControllers() noexcept {
+    PcLocalSessions::Stop();
     PcLocalInput::Stop();
     DVDMyStuffStop();
     PcOnlineRooms::Stop();
