@@ -4,7 +4,8 @@ import json,re,sys,unittest
 
 ROOT=Path(__file__).resolve().parents[2]
 sys.path.insert(0,str(ROOT/'pc-builder/maintainer'))
-from localization_helpers import translate_plain,transcribe_prose,PRINTF,shared_record
+from localization_helpers import translate_plain,transcribe_prose,PRINTF,shared_record,correct_base_wording
+from locale_messages import transform_message,message_parts
 
 
 class ContextualLocalizationTests(unittest.TestCase):
@@ -31,6 +32,18 @@ class ContextualLocalizationTests(unittest.TestCase):
         self.assertTrue(shared_record(table,7))
         table['fr'].clear()
         self.assertFalse(shared_record(table,7))
+
+    def test_transcription_inherits_repaired_wording_and_arguments(self):
+        message=lambda text:text.encode('utf-16-be')+b'\0\0'
+        context={code:{0x212d:(1,message(text))} for code,text in (
+            ('en','registered Hybridally %ls'),
+            ('es','respuesta a la\n a la solicitud %ls'),
+            ('es-419','respuesta a la\n a la solicitud %ls'))}
+        correct_base_wording(context)
+        for code in ('es','es-419'):
+            result=transform_message(context[code][0x212d][1],lambda text:transcribe_prose(text,str.upper))
+            self.assertEqual(message_parts(result),['RESPUESTA\n A LA SOLICITUD %ls'])
+        self.assertEqual(message_parts(context['en'][0x212d][1]),['registered automatically %ls'])
 
     def test_reviewed_pc_catalog_is_complete_and_keeps_identity_tokens(self):
         document=json.loads((ROOT/'pc-builder/maintainer/reviewed_pc.json').read_text(encoding='utf-8'))['languages']

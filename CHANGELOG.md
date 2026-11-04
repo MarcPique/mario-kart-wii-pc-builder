@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.1.0-preview.5 — 2026-11-04
+
+- Repair inherited Spanish wording before deriving Andaluh, so the friend-invitation correction reaches both languages. Preserve names, buttons and format arguments.
+- Display a translated room label followed by its count instead of appending a fixed plural suffix. Zero, one and multiple rooms use consistent wording in all fifteen languages.
+- Remove the obsolete plural-only PC label and add a regression check for inherited corrections surviving transcription.
+
 ## 1.1.0-preview.4 — 2026-11-04
 
 - Review all 1,260 PC catalog entries across fifteen languages: correct technical terminology, accents, button verbs, room/status messages and missing negation. Make the native runtime use the corrected catalog for the original five languages too, retaining compiled labels as fallback.

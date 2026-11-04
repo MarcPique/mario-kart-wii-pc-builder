@@ -3,7 +3,7 @@ from pathlib import Path
 import sys,json,hashlib,unicodedata,random
 ROOT=Path(__file__).resolve().parents[2]
 sys.path.insert(0,str(ROOT/'pc-builder/worker'))
-from localization_helpers import corpus,translate_plain,TARGETS,shared_record,PRINTF,reflow,transcribe_prose
+from localization_helpers import corpus,translate_plain,TARGETS,shared_record,PRINTF,reflow,transcribe_prose,correct_base_wording
 from locale_messages import transform_message,message_parts,visible_characters
 from extended_locales import encode,typography
 from locale_overrides import TEXT,GAME,OTHER
@@ -66,6 +66,10 @@ def assemble(workspace,cache_file,output,audit_dir,review_file=None):
         # become dialect words. Split by spans, not by replacement placeholders.
         return typography(unicodedata.normalize('NFC',transcribe_prose(text,andaluh.epa,names)),characters)
 
+    # Keep the immutable source snapshot above unchanged, and let EPA inherit
+    # repaired Spanish rather than the original duplicated invitation wording.
+    for context in [menus,races]:correct_base_wording(context)
+
     for context in [menus,races]:
         context['and_ES']={}
         for ident,(font,data) in context['es'].items():
@@ -92,11 +96,6 @@ def assemble(workspace,cache_file,output,audit_dir,review_file=None):
                 previous=entries[0x295f][1]
                 text=menu_output[code]['Language changes immediately. Saved automatically.']
                 entries[0x295f]=(1,transform_message(previous,lambda part:reflow(part,text)))
-        font,data=context['en'][0x212d]
-        context['en'][0x212d]=(font,transform_message(data,lambda text:text.replace('registered Hybridally','registered automatically')))
-        for code in ['es','es-419']:
-            font,data=context[code][0x212d]
-            context[code][0x212d]=(font,transform_message(data,lambda text:text.replace('respuesta a la\n a la solicitud','respuesta\n a la solicitud')))
 
     for context_name,context in [('menu',menus),('race',races)]:
         for code,entries in context.items():

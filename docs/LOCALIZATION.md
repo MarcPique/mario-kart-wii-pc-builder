@@ -6,13 +6,15 @@ The original five PAL languages come from the user's disc plus Retro Rewind over
 
 ## Contextual review in preview 4
 
-- Review all **84 PC messages in all 15 languages** (1,260 entries). Keep these project-owned labels in `pc-builder/maintainer/reviewed_pc.json`. The runtime now consults this catalog for the original five languages as well; their compiled fallback strings no longer hide corrections.
+- Reviewed all **84 PC messages in all 15 languages** in preview 4 (1,260 entries). These project-owned labels live in `pc-builder/maintainer/reviewed_pc.json`. Preview 5 removes one obsolete plural-only suffix, leaving 83 current labels per language. The runtime consults this catalog for the original five languages as well; their compiled fallback strings no longer hide corrections.
 - Inspect **1,543 distinct game-text spans per language** for Catalan, Galician and Basque, including 214 newly joined multiline contexts. Correct race/course/cup/drift terminology, elimination and team counts, ghost challenges, menus, confirmations, error-code prompts and messages that lost their final instruction. The private review records both replacements and accepted text.
 - Treat BMG line breaks as layout. Translate whole prose spans and reflow afterwards, retaining embedded button/variable commands and C-style arguments such as `%ls` and `%04d` exactly. Preserve invariant names/credits and use canonical vehicle/track names where a reviewed localized name is unavailable.
 - Protect product names, file formats, engine classes and controls during Andaluh transcription. `Dolphin`, `ZIP/7z`, `Retro WFC`, `200cc` and button letters remain recognizable.
 - Replace Retro Rewind's obsolete restart-language instruction in all fifteen banks with the immediate-change help. Correct the inherited English automatic-registration typo and duplicated Spanish friend-invitation wording.
 
 The structural audit checks **90,720 records** (3,024 IDs × 15 languages × menu/race contexts), font coverage and command/format preservation. Live switching and screenshots are checked separately. These checks and the editorial pass improve meaning and consistency; they do **not** certify native-speaker accuracy of every inherited Retro Rewind translation, name or layout. Catalan/Galician/Basque remain experimental.
+
+The final preview-5 pass also ensures Spanish repairs run **before** Andaluh transcription, and replaces the fixed plural room suffix with a translated label and count (`Rooms: 1`). This avoids incorrect singular/plural combinations without changing room discovery or matchmaking.
 
 Only the fonts already present in the compatible installation are used. The maintainer audit verifies every required visible codepoint against `kart_kanji_font.brfnt` in the active Retro Rewind `UI/Font.szs`; the installer repeats that check before applying the patch. Japanese and Korean are excluded: the available fonts do not cover their complete message banks. Supported typography is normalized (for example a long dash becomes a hyphen); font images and glyphs are not generated or downloaded.
 

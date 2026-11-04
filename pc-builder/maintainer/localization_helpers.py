@@ -44,6 +44,15 @@ def shared_record(contexts,ident):
     return all(contexts[code].get(ident,(0,b''))[1]==source for code in ('es','fr','de','it'))
 
 
+def correct_base_wording(context):
+    """Repair inherited wording before any Spanish-derived transcription."""
+    font,data=context['en'][0x212d]
+    context['en'][0x212d]=(font,transform_message(data,lambda text:text.replace('registered Hybridally','registered automatically')))
+    for code in ('es','es-419'):
+        font,data=context[code][0x212d]
+        context[code][0x212d]=(font,transform_message(data,lambda text:text.replace('respuesta a la\n a la solicitud','respuesta\n a la solicitud')))
+
+
 def reflow(source,translation):
     """Retain a message's layout width without translating its lines separately."""
     if '\n' not in source and '\r' not in source:return translation

@@ -2,7 +2,7 @@
 
 ![Mario Kart Wii PC Builder](docs/hero.svg)
 
-[![Descargar preview 4](https://img.shields.io/badge/Descargar-1.1.0--preview.4-009bd7?style=for-the-badge)](https://github.com/MarcPique/mario-kart-wii-pc-builder/releases/download/v1.1.0-preview.4/MKWii-PC-Builder.exe)
+[![Descargar preview 5](https://img.shields.io/badge/Descargar-1.1.0--preview.5-009bd7?style=for-the-badge)](https://github.com/MarcPique/mario-kart-wii-pc-builder/releases/download/v1.1.0-preview.5/MKWii-PC-Builder.exe)
 ![Windows x64](https://img.shields.io/badge/Windows-x64-1478c8?style=for-the-badge&logo=windows)
 ![Tu disco](https://img.shields.io/badge/ISO-local-343c4a?style=for-the-badge)
 [![Online habilitado](https://img.shields.io/badge/Online-HABILITADO%20%C2%B7%20Retro%20WFC-27ae60?style=for-the-badge)](#online-habilitado)
@@ -12,7 +12,7 @@
 
 **Selecciona tu imagen PAL → compila en tu PC → abre Mario Kart Wii.exe desde el escritorio.**
 
-**[⬇ Descargar para Windows · 1.1.0-preview.4](https://github.com/MarcPique/mario-kart-wii-pc-builder/releases/download/v1.1.0-preview.4/MKWii-PC-Builder.exe)**
+**[⬇ Descargar para Windows · 1.1.0-preview.5](https://github.com/MarcPique/mario-kart-wii-pc-builder/releases/download/v1.1.0-preview.5/MKWii-PC-Builder.exe)**
 
 [Capturas](#capturas) · [Instalación](#instalación) · [Idiomas](#15-idiomas-sin-reiniciar) · [Online](#online-habilitado) · [Texturas](#paquetes-de-texturas-de-dolphin) · [Cambios](CHANGELOG.md)
 
@@ -22,11 +22,11 @@ Este builder genera una instalación nativa para Windows a partir de **tu propio
 
 **✅ Online habilitado mediante Retro WFC:** login, amigos y salas integrados en el propio juego, sin cerrar ni cambiar de ejecutable. Las salas se consultan al iniciar y se actualizan automáticamente cada **40 segundos**.
 
-> **La descarga destacada es una versión preliminar con todas las novedades descritas aquí.** [Notas y SHA-256 de preview 4](https://github.com/MarcPique/mario-kart-wii-pc-builder/releases/tag/v1.1.0-preview.4). La [estable 1.0.2](https://github.com/MarcPique/mario-kart-wii-pc-builder/releases/tag/v1.0.2) sigue disponible, pero no incluye las últimas novedades de idiomas, formatos y texturas.
+> **La descarga destacada es una versión preliminar con todas las novedades descritas aquí.** [Notas y SHA-256 de preview 5](https://github.com/MarcPique/mario-kart-wii-pc-builder/releases/tag/v1.1.0-preview.5). La [estable 1.0.2](https://github.com/MarcPique/mario-kart-wii-pc-builder/releases/tag/v1.0.2) sigue disponible, pero no incluye las últimas novedades de idiomas, formatos y texturas.
 
 ## Lo que incluye
 
-| Función | Incluido en 1.1.0-preview.4 |
+| Función | Incluido en 1.1.0-preview.5 |
 |---|---|
 | 🏁 Presentación original | Ventana **Mario Kart Wii**, icono en EXE, ventana y barra de tareas; preparación inicial en segundo plano |
 | ⚙️ Opciones avanzadas | Integradas en **Opciones y pausa**, con controles, fuentes y animaciones nativos |
@@ -48,6 +48,8 @@ El icono completo se obtiene **localmente del banner de tu disco**. La integraci
 El cambio actualiza los textos del juego, Retro Rewind y las opciones de PC **al instante**, incluidos los menús ya abiertos. Solo utiliza las fuentes existentes. Las voces y el texto integrado en imágenes no cambian.
 
 **Revisión de idiomas en preview 4:** revisados los **1.260 textos de opciones de PC** y **1.543 fragmentos de juego por idioma** en catalán, gallego y euskera. Se corrigen sentidos equivocados de carrera, circuito, copa y derrape, además de confirmaciones, errores e instrucciones incompletas. Las frases se traducen con contexto antes de ajustarlas a las líneas. Los nombres propios, formatos y códigos de botones se conservan, también en andalûh.
+
+**Última revisión en preview 5:** se corrige una repetición en andalûh y el contador muestra una etiqueta traducida con el número de salas, sin plurales incorrectos.
 
 **Catalán, gallego y euskera siguen siendo traducciones experimentales**, señaladas con asterisco y aviso en el menú. Los otros idiomas conservan los textos de Retro Rewind, con el catálogo de PC revisado. **Andalûh es una transcripción EPA del español.** Japonés y coreano no se ofrecen porque las fuentes disponibles no cubren todos sus caracteres. La revisión no certifica la exactitud lingüística de todos los textos heredados. [Procedencia, alcance y límites de la revisión](docs/LOCALIZATION.md).
 
@@ -91,7 +93,7 @@ El juego conserva su presentación y menús originales. La preparación inicial 
 
 ## Instalación
 
-1. Descarga **[MKWii-PC-Builder.exe · 1.1.0-preview.4](https://github.com/MarcPique/mario-kart-wii-pc-builder/releases/download/v1.1.0-preview.4/MKWii-PC-Builder.exe)** desde Releases.
+1. Descarga **[MKWii-PC-Builder.exe · 1.1.0-preview.5](https://github.com/MarcPique/mario-kart-wii-pc-builder/releases/download/v1.1.0-preview.5/MKWii-PC-Builder.exe)** desde Releases.
 2. Selecciona tu imagen **ISO, WBFS o RVZ** de Mario Kart Wii **PAL RMCP01**.
 3. Elige la carpeta de instalación y pulsa **Compilar e instalar**.
 4. Abre **Mario Kart Wii.exe** desde el escritorio o pulsa **Abrir el juego**.

@@ -1,6 +1,6 @@
 MARIO KART WII PC — COMPILADO DESDE TU DISCO
 
-1.1.0-preview.4: revisión de idiomas y terminología de juego y PC.
+1.1.0-preview.5: revisión de idiomas y terminología de juego y PC.
 Se conservan nombres propios, botones y variables. Catalán, gallego y euskera
 siguen siendo traducciones experimentales. El cambio de idioma es inmediato.
 
