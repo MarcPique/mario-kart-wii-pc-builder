@@ -10,7 +10,7 @@ seleccionado por defecto. B también cancela.
 
 Opciones avanzadas: selección de carné > Opciones > Opciones avanzadas.
 También está en la pausa de las carreras locales. El botón inferior cambia de
-página: Pantalla, Calidad gráfica, Idioma, Mandos, Actualizaciones, Formato
+página: Pantalla, Calidad gráfica, Idioma, Mandos, Actualizaciones, Resolución interna
 y Paquetes de texturas.
 En Mandos elige un dispositivo y pulsa Asignar en el jugador deseado.
 Se admiten hasta cuatro mandos para el multijugador local. No se necesita F10.
@@ -63,9 +63,13 @@ Formatos: Automático, 4:3, 5:4, 3:2, 16:10, 16:9, 1.85:1, 2:1, 21:9,
 43:18, 64:27, 32:10, 32:9, 48:9, 1:1 y 9:16. Los formatos fijos conservan
 las proporciones con bandas; Automático sigue la ventana. Cambio en vivo.
 
-Texturas de Dolphin: extrae los PNG/DDS de tu paquete en
+Texturas de Dolphin: copia los PNG/DDS, ZIP o 7z de tu paquete en
 UserData/Load/Textures/RMCP01 (o RMC para paquetes de todas las regiones).
-Conserva nombres tex1_ y subcarpetas; descomprime los ZIP antes de copiarlos.
+Conserva nombres tex1_ y subcarpetas. ZIP/7z se importan en segundo plano
+al abrir el juego o pulsar Recargar. No necesitas instalar 7-Zip.
 En Opciones avanzadas > Paquetes de texturas puedes activar, recargar y abrir
 la carpeta sin reiniciar. Una textura ausente o no válida usa la original.
 No se incluye ni se descarga ningún paquete de texturas automáticamente.
+
+Los 16 formatos están directamente en Pantalla > selector inferior Formato.
+Los botones de Formato rápido son tres accesos directos; el selector tiene todos.

@@ -3,6 +3,7 @@
 #include "pc_online_rooms.h"
 #include "pc_graphics_settings.h"
 #include "pc_menu_locale.h"
+#include "pc_texture_packs.h"
 #include <aurora/imgui.h>
 #include <SDL3/SDL_video.h>
 #include "runtime_product.h"
@@ -1698,5 +1699,5 @@ void NotifyStrapInputAccepted() noexcept {
     }
 }
 
-void AdvancePresentedFrame() noexcept { ++g_presentedFrame; }
+void AdvancePresentedFrame() noexcept { ++g_presentedFrame; PcTexturePacks::Pump(); }
 } // namespace settings_overlay

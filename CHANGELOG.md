@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.1.0-preview.3 — 2026-11-04
+
+- Put all sixteen aspect ratios directly in the Display page scroller. Label the three radio shortcuts Quick ratio; keep the complete internal-resolution selector on its own page.
+- Import ZIP and 7z texture packs from the native texture folders in the background at startup or on Reload, without a restart or system 7-Zip installation. Cache completed imports by archive SHA-256; reuse them on subsequent scans.
+- Download and verify the official standalone 7-Zip Extra 26.05 x64 tool during installation, keeping its license/readme with the generated game.
+- Preflight archive paths, links, device names, encryption, duplicates and image-size quotas. Use a contained hidden child process and publish only completed cache directories. A failed archive retains original game textures; loose PNG/DDS files take priority over imported packs.
+- Refresh the native texture count/import status automatically. Verify a ZIP resource pack including its logo, live 7z replacement, traversal rejection and original-texture fallback.
+
 ## 1.1.0-preview.2 — 2026-11-04
 
 - Add Exit to desktop to the native main menu. Reuse the original full-screen confirmation, default to Cancel, support B cancellation, and exit successfully through the existing clean window-close path.

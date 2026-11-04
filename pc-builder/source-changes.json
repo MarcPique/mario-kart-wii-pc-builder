@@ -36,5 +36,7 @@
   "runtime/include/pc_aspect_ratio.h",
   "runtime/include/pc_texture_packs.h",
   "runtime/src/pc_texture_packs.cpp",
-  "runtime/src/dynamic_aspect.cpp"
+  "runtime/src/dynamic_aspect.cpp",
+  "runtime/include/pc_texture_archive.h",
+  "runtime/src/pc_texture_archive.cpp"
 ]

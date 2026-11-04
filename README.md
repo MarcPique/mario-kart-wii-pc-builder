@@ -20,7 +20,7 @@ Este builder genera una instalación nativa para Windows a partir de **tu propio
 
 **✅ Online habilitado mediante Retro WFC:** login, amigos y salas integrados en el propio juego, sin cerrar ni cambiar de ejecutable. Las salas se consultan al iniciar y se actualizan automáticamente cada **40 segundos**.
 
-**🌍 [Probar 1.1.0-preview.2: 15 idiomas](https://github.com/MarcPique/mario-kart-wii-pc-builder/releases/tag/v1.1.0-preview.2)** · Español, English, Français, Deutsch, Italiano, Nederlands, Čeština, Suomi, Русский, Türkçe, Español LA, Català, Galego, Euskara y Andalûh. Usa solo las fuentes existentes y cambia sin reiniciar. **Catalán, gallego y euskera tienen traducción automática experimental**, marcada en el menú; otros idiomas añadidos incluyen suplementos automáticos. Andaluh es una transcripción EPA. Las voces e imágenes no se traducen. [Procedencia, límites y generación](docs/LOCALIZATION.md). La descarga estable superior sigue siendo 1.0.2, con cinco idiomas.
+**🌍 [Probar 1.1.0-preview.3: 15 idiomas](https://github.com/MarcPique/mario-kart-wii-pc-builder/releases/tag/v1.1.0-preview.3)** · Español, English, Français, Deutsch, Italiano, Nederlands, Čeština, Suomi, Русский, Türkçe, Español LA, Català, Galego, Euskara y Andalûh. Usa solo las fuentes existentes y cambia sin reiniciar. **Catalán, gallego y euskera tienen traducción automática experimental**, marcada en el menú; otros idiomas añadidos incluyen suplementos automáticos. Andaluh es una transcripción EPA. Las voces e imágenes no se traducen. [Procedencia, límites y generación](docs/LOCALIZATION.md). La descarga estable superior sigue siendo 1.0.2, con cinco idiomas.
 
 ## Lo que incluye
 
@@ -41,13 +41,13 @@ Los **personajes personalizados incluidos en Retro Rewind también se usan en la
 
 También incluye la consulta de versiones de Retro Rewind, «Todas las pistas» en ajustes recién creados y el selector de salas públicas. Se ha verificado la entrada a salas Retro y CT; otros modos y cambios de anfitrión necesitan más pruebas. **Hasta cuatro jugadores en multijugador local; hasta dos jugadores locales por PC en Retro WFC.** Cuatro jugadores online desde una sola conexión requerirían ampliar los paquetes del juego y la compatibilidad de los demás clientes; esta versión no lo implementa.
 
-### Pantallas, texturas y salida · preview 2
+### Pantallas, texturas y salida · preview 3
 
-La [versión 1.1.0-preview.2](https://github.com/MarcPique/mario-kart-wii-pc-builder/releases/tag/v1.1.0-preview.2) añade **Salir al escritorio** al menú principal con confirmación nativa y **Cancelar** como opción inicial. B cancela; confirmar Salir cierra el juego.
+La [versión 1.1.0-preview.3](https://github.com/MarcPique/mario-kart-wii-pc-builder/releases/tag/v1.1.0-preview.3) añade **Salir al escritorio** al menú principal con confirmación nativa y **Cancelar** como opción inicial. B cancela; confirmar Salir cierra el juego.
 
-**16 formatos:** Automático, 4:3, 5:4, 3:2, 16:10, 16:9, 1.85:1, 2:1, 21:9, 43:18, 64:27, 32:10, 32:9, 48:9, 1:1 y 9:16. En **Opciones avanzadas → Formato**, Automático sigue la ventana; un formato fijo conserva las proporciones con bandas cuando corresponde. El campo de visión se adapta mediante el sistema EGG existente.
+**16 formatos:** Automático, 4:3, 5:4, 3:2, 16:10, 16:9, 1.85:1, 2:1, 21:9, 43:18, 64:27, 32:10, 32:9, 48:9, 1:1 y 9:16. En **Opciones avanzadas → Pantalla → Formato**, Automático sigue la ventana; un formato fijo conserva las proporciones con bandas cuando corresponde. El campo de visión se adapta mediante el sistema EGG existente.
 
-**Paquetes de texturas de Dolphin:** PNG/DDS descomprimidos en `UserData/Load/Textures/RMCP01` o `RMC`. Activa, desactiva y recarga desde **Opciones avanzadas → Paquetes de texturas**, sin reiniciar. Las texturas ausentes o no válidas conservan las originales. No se incluyen paquetes ni se sobrescriben los archivos del disco. [Formato de carpetas y límites](docs/TEXTURE-PACKS.md).
+**Paquetes de texturas de Dolphin:** PNG/DDS, ZIP y 7z en `UserData/Load/Textures/RMCP01` o `RMC`. Los archivos comprimidos se importan en segundo plano al abrir el juego o pulsar Recargar; no necesitas instalar 7-Zip. Activa, desactiva y recarga desde **Opciones avanzadas → Paquetes de texturas**, sin reiniciar. Las texturas ausentes o no válidas conservan las originales. No se incluyen paquetes ni se sobrescriben los archivos del disco. [Formato de carpetas y límites](docs/TEXTURE-PACKS.md).
 
 ## Instalación
 
@@ -86,9 +86,11 @@ Capturas del juego durante las pruebas locales y de la interfaz del instalador. 
 
 <p align="center"><img src="docs/screenshots/main-menu-exit.png" width="800" alt="Salir al escritorio integrado en el menú principal original"></p>
 
-| Salir con confirmación nativa · preview 2 | Texturas de Dolphin · preview 2 |
+| Salir con confirmación nativa · preview 3 | Texturas de Dolphin · preview 3 |
 |---|---|
 | ![Confirmación con Cancelar seleccionado](docs/screenshots/exit-confirmation.png) | ![Activar y recargar PNG/DDS en el menú original](docs/screenshots/texture-packs.png) |
+
+<p align="center"><img src="docs/screenshots/aspect-ratios.png" width="800" alt="Los 16 formatos se recorren directamente en Pantalla; 21:9 seleccionado sin reiniciar"></p>
 
 <p align="center"><img src="docs/screenshots/ultrawide-race.png" width="1000" alt="Mario Fire en Grand Prix a 32:9, ventana de prueba de 1920 por 540 píxeles"></p>
 

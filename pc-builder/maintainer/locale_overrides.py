@@ -130,3 +130,9 @@ TEXT.update({
 })
 
 TEXT['Textures']=('Textures','Texturas','Testurak')
+
+TEXT.update({
+'Quick ratio':('Format ràpid','Formato rápido','Formatu azkarra'),
+'Importing ZIP/7z in the background...':('Important ZIP/7z en segon pla...','Importando ZIP/7z en segundo plano...','ZIP/7z atzeko planoan inportatzen...'),
+'A pack could not be imported. Original textures retained.':('No s’ha pogut importar un paquet. Es conserven les textures originals.','Non se puido importar un paquete. Consérvanse as texturas orixinais.','Ezin izan da pakete bat inportatu. Jatorrizko testurak mantentzen dira.')
+})

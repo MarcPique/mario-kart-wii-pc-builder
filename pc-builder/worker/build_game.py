@@ -138,6 +138,16 @@ def translate(work,log,jobs):
     run([tool,'generate-data-init','--project',project],workspace,log,'data-init')
     run([tool,'emit-build-shards','--project',project,'--base-metadata',metadata,'--base-functions-dir',functions,'--native-source-dir',workspace/'runtime/src','--out',generated/'build_shards','--resolved-profile',mod/'resolved_dispatch_profile.json','--retro-cpp-dir',mod/'cpp'],workspace,log,'shards')
 
+def prepare_texture_archiver(work,native,log,cache,offline=False):
+    bootstrap=download(PINS['archive_bootstrap'],cache,offline);extra=download(PINS['archive_extra'],cache,offline)
+    destination=work/'texture-archiver';destination.mkdir(exist_ok=True)
+    run([bootstrap,'x',extra,'-y','-o'+str(destination),'x64/7za.exe','License.txt','readme.txt'],work,log,'texture-archiver')
+    executable=destination/'x64/7za.exe'
+    if sha(executable)!=PINS['archive_tool_sha256']:raise ValueError('El extractor de texturas no coincide con la version verificada.')
+    tools=native/'Tools';tools.mkdir(parents=True,exist_ok=True)
+    shutil.copy2(executable,tools/'7za.exe')
+    for name in ['License.txt','readme.txt']:shutil.copy2(destination/name,tools/('7zip-'+name))
+
 def create_launcher(work,stage,log):
     workspace=work/'Install/BuildWorkspace';bin=work/'Install/Toolkit/llvm-mingw/bin';resource=work/'launcher.rc'
     icon=(workspace/'runtime/resources/MarioKartWii.ico').as_posix()
@@ -211,6 +221,7 @@ def main(options):
             if p.is_file() and (p.suffix.lower()=='.dll' or p.name in ['RetroRewind.exe','dsp_coef.bin','initial_pipeline_cache.db']):shutil.copy2(p,native/p.name)
         for p in (work/'Install/Toolkit/Redist').glob('*.dll'):shutil.copy2(p,native/p.name)
         shutil.copytree(build/'wii_bootstrap',native/'wii_bootstrap')
+        prepare_texture_archiver(work,native,log,cache,options.offline)
         import prepare_original_ui,make_locale_bank
         prepare_original_ui.ROOT=work;make_locale_bank.ROOT=work
         prepare_original_ui.main();make_locale_bank.main()
